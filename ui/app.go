@@ -87,6 +87,7 @@ type App struct {
 	DB         *bolt.DB
 	ArtistsMap map[string]bool
 	Artists    sort.StringSlice
+	Playlists  sort.StringSlice
 	Songs      map[string][]string
 	Albums     map[string][]string
 
@@ -151,7 +152,20 @@ func (app *App) Run() {
 	app.populateArtists()
 	// log.Printf("Artists done")
 	go app.player()
-	app.mainLoop()
+	app.mainLoop(app.Artists)
+}
+
+func (app *App) populatePlaylists() {
+	app.Playlists = sort.StringSlice{}
+	app.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Playlists"))
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			app.Playlists = append(app.Playlists, string(k))
+		}
+
+		return nil
+	})
 }
 
 func (app *App) populateArtists() {
@@ -209,7 +223,7 @@ func (app *App) populateSongs() {
 
 }
 
-func (app *App) search() {
+func (app *App) search(what []string) {
 	app.Status.InTracks = false
 	app.Status.InSearch = true
 	app.Status.NumTrack = 0
@@ -238,11 +252,11 @@ func (app *App) search() {
 				return
 			}
 		}
-		app.searchQuery()
+		app.searchQuery(what)
 	}
 }
 
-func (app *App) searchQuery() {
+func (app *App) searchQuery(what []string) {
 	app.Status.NumAlbum[false] = -1
 	var i int
 	if !app.Status.InSearch {
@@ -250,7 +264,7 @@ func (app *App) searchQuery() {
 	}
 	if len(app.Status.Query) > 0 {
 		for i < len(app.Artists) {
-			if strings.HasPrefix(strings.ToLower(app.Artists[i]), strings.ToLower(string(app.Status.Query))) {
+			if strings.HasPrefix(strings.ToLower(what[i]), strings.ToLower(string(app.Status.Query))) {
 				if i > 2 {
 					app.Status.ScrOffset[false] = i - 2
 					app.Status.CurPos[false] = 3
@@ -258,7 +272,7 @@ func (app *App) searchQuery() {
 					app.Status.ScrOffset[false] = 0
 					app.Status.CurPos[false] = i + 1
 				}
-				app.updateUI()
+				app.updateUI(what)
 				return
 			}
 			i++
@@ -297,18 +311,18 @@ func (app *App) randomizeArtists() {
 	}
 
 	app.Artists = temp
-	app.updateUI()
+	app.updateUI(app.Artists)
 
 }
 
-func (app *App) mainLoop() {
+func (app *App) mainLoop(what []string) {
 	for {
 		app.Screen.Show()
 		ev := app.Screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			app.Width, app.Height = app.Screen.Size()
-			app.updateUI()
+			app.updateUI(what)
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape:
@@ -332,7 +346,7 @@ func (app *App) mainLoop() {
 			}
 			switch ev.Rune() {
 			case '/':
-				app.search()
+				app.search(what)
 			case 'q':
 				return
 			case 'j':
@@ -358,11 +372,11 @@ func (app *App) mainLoop() {
 			case 'z':
 				app.Status.State <- prev
 			case 'n':
-				app.searchQuery()
+				app.searchQuery(what)
 			case 'R':
 				app.randomizeArtists()
 			}
 		}
-		app.updateUI()
+		app.updateUI(what)
 	}
 }

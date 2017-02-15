@@ -33,15 +33,16 @@ import (
 )
 
 var (
+	curView  = "Artist / Album" // current view
 	defDur   = time.Duration(0) // this and below are used for when nothing is playing
 	defTrack = &music.BTrack{}
 )
 
-func (app *App) updateUI() {
+func (app *App) updateUI(what []string) {
 	app.Screen.Clear()
 	fill(app.Screen, app.Width/3, 1, 1, app.Height-3, '│', dfStyle)
-	app.printHeader()
-	if len(app.Artists) > 0 {
+	app.printHeader(curView)
+	if len(what) > 0 {
 		app.printArtists(app.Status.ScrOffset[false], app.Height+app.Status.ScrOffset[false]-3)
 		app.printSongs(app.Status.ScrOffset[true], app.Height+app.Status.ScrOffset[true]-3)
 		for app.Status.CurPos[false] > app.Height-3 {
@@ -75,9 +76,9 @@ func (app *App) hlEntry() {
 		printSingleItem(app.Screen, app.Width/3+2, app.Status.CurPos[app.Status.InTracks], hlStyle, app.makeSongLine(js), 0, false, app.Width)
 	}
 }
-func (app *App) printHeader() {
+func (app *App) printHeader(what string) {
 	fill(app.Screen, 0, 0, app.Width, 1, ' ', hlStyle)
-	print(app.Screen, 1, 0, hlStyle, "Artist / Album")
+	print(app.Screen, 1, 0, hlStyle, what)
 	print(app.Screen, app.Width/3+2, 0, hlStyle, "Track")
 	print(app.Screen, app.Width-8, 0, hlStyle, "Library")
 	fill(app.Screen, 0, app.Height-2, app.Width, 1, ' ', hlStyle)
