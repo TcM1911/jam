@@ -154,7 +154,7 @@ func (app *App) printAlbum(y int, alb string) {
 
 func (app *App) printSongs(beg, end int, what []string) {
 	app.Status.Queue = [][]*music.BTrack{}
-	var js = new(music.BTrack)
+	var js *music.BTrack
 	app.populateSongs(what)
 	i, k := 0, 1
 	if app.Status.NumAlbum[false] == -1 {
@@ -176,6 +176,7 @@ func (app *App) printSongs(beg, end int, what []string) {
 			}
 			i++
 			for _, song := range app.Songs[key] {
+				js = new(music.BTrack)
 				json.Unmarshal([]byte(song), js)
 				if i >= beg && i < end {
 					printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
@@ -195,6 +196,7 @@ func (app *App) printSongs(beg, end int, what []string) {
 		}
 
 		for _, song := range app.Songs[app.Albums[app.Artists[j-app.numAlb(j)]][app.Status.NumAlbum[false]]] {
+			js = new(music.BTrack)
 			json.Unmarshal([]byte(song), js)
 			if i >= beg && i < end {
 				printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
