@@ -40,6 +40,8 @@ func (app *App) makeSongLine(track *music.BTrack) string {
 	if app.Artists[i-app.numAlb(i)] == "Various Artists" {
 		res = fmt.Sprintf("%2v. %v - %v", track.TrackNumber, track.Artist,
 			track.Title)
+	} else if curView == 1 {
+		res = fmt.Sprintf("%v - %v", track.Artist, track.Title)
 	} else {
 		res = fmt.Sprintf("%2v. %v", track.TrackNumber, track.Title)
 	}

@@ -22,6 +22,7 @@ package music
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 	"strings"
 
@@ -85,6 +86,13 @@ func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
 		}
 
 		for _, entry := range entries {
+			track, err = gm.GetTrackInfo(entry.TrackId)
+			if err != nil {
+				err = nil
+				continue
+			}
+			log.Println(track)
+
 			for _, plEntry := range playlists {
 				if entry.PlaylistId == plEntry.ID {
 					plName = plEntry.Name
@@ -97,13 +105,8 @@ func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
 				return err
 			}
 
-			track, err = gm.GetTrackInfo(entry.TrackId)
-			if err != nil {
-				continue
-			}
-
 			bt := BTrack{track.Artist, track.DiscNumber, track.TrackNumber, track.DurationMillis,
-				track.EstimatedSize, track.ID, track.PlayCount, track.Title, track.Year}
+				track.EstimatedSize, entry.TrackId, track.PlayCount, track.Title, track.Year}
 			buf, err = json.Marshal(bt)
 			if err != nil {
 				return err

@@ -150,9 +150,10 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 func (app *App) Run() {
 	defer app.Screen.Fini()
 	app.populateArtists()
+	app.populatePlaylists()
 	// log.Printf("Artists done")
 	go app.player()
-	app.mainLoop(app.Artists)
+	app.mainLoop()
 }
 
 func (app *App) populatePlaylists() {
@@ -198,13 +199,19 @@ func (app *App) populateArtists() {
 	})
 }
 
-func (app *App) populateSongs() {
+func (app *App) populateSongs(what []string) {
 	app.Songs = map[string][]string{}
 	if err := app.DB.View(func(tx *bolt.Tx) error {
-		l := tx.Bucket([]byte("Library"))
-		i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
-		b := l.Bucket([]byte(app.Artists[i-app.numAlb(i)]))
-		c := b.Cursor()
+		var b *bolt.Bucket
+		var c *bolt.Cursor
+		if curView == 0 {
+			i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-app.numAlb(i)]))
+		} else if curView == 1 {
+			b = tx.Bucket([]byte("Playlists"))
+		}
+		c = b.Cursor()
+
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if v == nil {
 				cc := b.Bucket(k).Cursor()
@@ -212,11 +219,8 @@ func (app *App) populateSongs() {
 					app.Songs[string(k)] = append(app.Songs[string(k)], string(vv))
 				}
 			}
-
 		}
-
 		return nil
-
 	}); err != nil {
 		log.Fatalf("Can't populate songs: %s", err)
 	}
@@ -315,7 +319,8 @@ func (app *App) randomizeArtists() {
 
 }
 
-func (app *App) mainLoop(what []string) {
+func (app *App) mainLoop() {
+	var what sort.StringSlice
 	for {
 		app.Screen.Show()
 		ev := app.Screen.PollEvent()
@@ -338,11 +343,13 @@ func (app *App) mainLoop(what []string) {
 			case tcell.KeyTab:
 				app.toggleView()
 			case tcell.KeyUp:
-				app.upEntry()
+				app.upEntry(what)
 			case tcell.KeyDown:
-				app.downEntry()
+				app.downEntry(what)
 			case tcell.KeyEnter:
 				app.Status.State <- play
+			case tcell.KeyCtrlSpace:
+				app.toggleTab()
 			}
 			switch ev.Rune() {
 			case '/':
@@ -350,9 +357,9 @@ func (app *App) mainLoop(what []string) {
 			case 'q':
 				return
 			case 'j':
-				app.downEntry()
+				app.downEntry(what)
 			case 'k':
-				app.upEntry()
+				app.upEntry(what)
 			case ' ':
 				app.toggleAlbums()
 			case 'u':
@@ -376,6 +383,11 @@ func (app *App) mainLoop(what []string) {
 			case 'R':
 				app.randomizeArtists()
 			}
+		}
+		if curView == 0 {
+			what = app.Artists
+		} else if curView == 1 {
+			what = app.Playlists
 		}
 		app.updateUI(what)
 	}
