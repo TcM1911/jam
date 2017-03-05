@@ -56,6 +56,7 @@ The keybindins are mostly the same as in Cmus:
 | End           | scroll to bottom                                                             |
 | space         | toggle albums                                                                |
 | R             | randomize artists                                                            |
+| Ctrl+Space    | toggle view (playlists/artists)                                              |
 
 [1]: https://github.com/mjibson/moggio
 
