@@ -22,6 +22,7 @@ package music
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 	"strings"
 
@@ -45,25 +46,98 @@ func RefreshLibrary(db *bolt.DB, gm *gmusic.GMusic) error {
 	//db, err := bolt.Open(fullDbPath(), 0600, nil)
 	//checkErr(err)
 	//defer db.Close()
-	var artist *bolt.Bucket
 	var err error
-	var key string
-	var temp int
-	var mixedAlbum bool
-	var buf []byte
 	tracks, err := gm.ListTracks()
 	if err != nil {
 		return err
 	}
-	err = db.Update(func(tx *bolt.Tx) error {
+	playlists, err := gm.ListPlaylists()
+	if err != nil {
+		return err
+	}
+	entries, err := gm.ListPlaylistEntries()
+	if err != nil {
+		return err
+	}
+	err = addTracks(db, tracks)
+	if err != nil {
+		return err
+	}
+	err = addPlaylists(db, gm, playlists, entries)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
+	playlists []*gmusic.Playlist, entries []*gmusic.PlaylistEntry) error {
+	var pl *bolt.Bucket
+	var track *gmusic.Track
+	var plName string
+	var buf []byte
+	var count int
+	err := db.Update(func(tx *bolt.Tx) error {
+		tx.DeleteBucket([]byte("Playlists"))
+
+		pls, err := tx.CreateBucket([]byte("Playlists"))
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			track, err = gm.GetTrackInfo(entry.TrackId)
+			if err != nil {
+				err = nil
+				continue
+			}
+			log.Println(track)
+
+			for _, plEntry := range playlists {
+				if entry.PlaylistId == plEntry.ID {
+					plName = plEntry.Name
+					break
+				}
+			}
+
+			pl, err = pls.CreateBucketIfNotExists([]byte(plName))
+			if err != nil {
+				return err
+			}
+
+			bt := BTrack{track.Artist, track.DiscNumber, track.TrackNumber, track.DurationMillis,
+				track.EstimatedSize, entry.TrackId, track.PlayCount, track.Title, track.Year}
+			buf, err = json.Marshal(bt)
+			if err != nil {
+				return err
+			}
+
+			err = pl.Put([]byte(strconv.Itoa(count)), buf)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+
+		return err
+
+	})
+	return err
+}
+func addTracks(db *bolt.DB, tracks []*gmusic.Track) error {
+	var artist *bolt.Bucket
+	var mixedAlbum bool
+	var buf []byte
+	var key string
+	err := db.Update(func(tx *bolt.Tx) error {
 		tx.DeleteBucket([]byte("Library"))
 
-		lib, err := tx.CreateBucketIfNotExists([]byte("Library"))
+		lib, err := tx.CreateBucket([]byte("Library"))
 		if err != nil {
 			return err
 		}
 		for i := 0; i < len(tracks); i++ {
-			temp = i + 1
+			temp := i + 1
 			for mixedAlbum = false; temp < len(tracks) && tracks[temp].Album == tracks[i].Album; temp++ {
 				if tracks[temp].Artist != tracks[i].Artist {
 					mixedAlbum = true
@@ -147,5 +221,7 @@ func RefreshLibrary(db *bolt.DB, gm *gmusic.GMusic) error {
 
 		return nil
 	})
+
 	return err
+
 }

@@ -80,7 +80,7 @@ func (app *App) player() {
 
 			song, err := app.GMusic.GetStream(track.ID)
 			if err != nil {
-				log.Fatalf("Can't play stream: %s", err)
+				log.Fatalf("Can't play stream: %s, %v", err, track)
 			}
 
 			defDur = time.Duration(0)

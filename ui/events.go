@@ -21,14 +21,17 @@
 package ui
 
 func (app *App) numAlb(k int) int {
-	var i int
-	for app.Artists[k] == "" {
-		i++
-		k--
+	if app.Status.CurView == 0 {
+		var i int
+		for app.Artists[k] == "" {
+			i++
+			k--
+		}
+		return i
 	}
-	return i
-
+	return 0
 }
+
 func (app *App) numSongs() int {
 	j := 0
 	for _, sngs := range app.Songs {
@@ -94,20 +97,39 @@ func (app *App) toggleView() {
 }
 
 func (app *App) toggleAlbums() {
-	app.Status.NumAlbum[false] = -1
-	i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
-	app.ArtistsMap[app.Artists[i-app.numAlb(i)]] = !app.ArtistsMap[app.Artists[i-app.numAlb(i)]]
+	if app.Status.CurView == 0 {
+		app.Status.NumAlbum[false] = -1
+		i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+		app.ArtistsMap[app.Artists[i-app.numAlb(i)]] = !app.ArtistsMap[app.Artists[i-app.numAlb(i)]]
 
-	if app.ArtistsMap[app.Artists[i-app.numAlb(i)]] {
-		app.appendAlbums()
-	} else {
-		app.removeAlbums()
-		app.Status.NumAlbum[true] = 0
-		app.Status.NumTrack = 0
-		app.Status.ScrOffset[true] = 0
-		app.Status.CurPos[true] = 2
+		if app.ArtistsMap[app.Artists[i-app.numAlb(i)]] {
+			app.appendAlbums()
+		} else {
+			app.removeAlbums()
+			app.Status.NumAlbum[true] = 0
+			app.Status.NumTrack = 0
+			app.Status.ScrOffset[true] = 0
+			app.Status.CurPos[true] = 2
+		}
 	}
 }
+
+func (app *App) toggleTab() {
+	if app.Status.CurView == 0 && len(app.Playlists) != 0 {
+		app.Status.CurView = 1
+		app.Status.CurPos[true] = 1
+	} else if app.Status.CurView == 1 && len(app.Artists) != 0 {
+		app.Status.CurView = 0
+		app.Status.CurPos[true] = 2
+	}
+	app.Status.InTracks = false
+	app.Status.CurPos[false] = 1
+	app.Status.ScrOffset[false] = 0
+	app.Status.ScrOffset[true] = 0
+	app.Status.NumTrack = 0
+
+}
+
 func (app *App) appendAlbums() {
 	var b []string
 	boo := app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] == app.Artists[len(app.Artists)-1]
@@ -135,14 +157,18 @@ func (app *App) removeAlbums() {
 
 }
 
-func (app *App) upEntry() {
+func (app *App) upEntry(what []string) {
 	switch app.Status.InTracks {
 	case false:
 		app.Status.NumTrack = 0
-		app.Status.CurPos[true] = 2
+		if app.Status.CurView == 0 {
+			app.Status.CurPos[true] = 2
+		} else {
+			app.Status.CurPos[true] = 1
+		}
 		app.Status.ScrOffset[true] = 0
 	case true:
-		if app.Status.NumAlbum[false] == -1 {
+		if app.Status.NumAlbum[false] == -1 && app.Status.CurView == 0 {
 			if app.Status.NumTrack > 0 {
 				app.Status.NumTrack--
 			} else if app.Status.NumTrack == 0 && app.Status.NumAlbum[true] > 0 {
@@ -173,12 +199,12 @@ func (app *App) upEntry() {
 	}
 
 	if !app.Status.InTracks {
-		if app.ArtistsMap[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]] {
+		if app.ArtistsMap[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]] {
 			app.Status.NumAlbum[false] = -1
 			app.Status.NumAlbum[true] = 0
-		} else if app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] == "" {
+		} else if what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] == "" {
 			curPosTemp := app.Status.CurPos[false] - 1
-			for app.Artists[curPosTemp+app.Status.ScrOffset[false]] == "" {
+			for what[curPosTemp+app.Status.ScrOffset[false]] == "" {
 				curPosTemp--
 			}
 			app.Status.NumAlbum[false] = app.Status.CurPos[false] - curPosTemp - 1 - 1
@@ -193,12 +219,14 @@ func (app *App) upEntry() {
 
 }
 
-func (app *App) downEntry() {
+func (app *App) downEntry(what []string) {
 	var high int
 	switch app.Status.InTracks {
 	case true:
 		high = 0
-		if app.Status.NumAlbum[false] == -1 {
+		if app.Status.CurView == 1 {
+			high = len(app.Songs[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]])
+		} else if app.Status.NumAlbum[false] == -1 {
 			for _, sngs := range app.Songs {
 				high++
 				for _ = range sngs {
@@ -209,35 +237,44 @@ func (app *App) downEntry() {
 			high = len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])
 		}
 
-		if app.Status.NumTrack < len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])-1 {
-			app.Status.NumTrack++
-		} else if app.Status.NumAlbum[true] < len(app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 && app.Status.NumAlbum[false] == -1 {
-			app.Status.NumAlbum[true]++
-			if app.Status.CurPos[true] > app.Height-6 {
-				app.Status.ScrOffset[true]++
-			} else {
-				app.Status.CurPos[true]++
+		if app.Status.CurView == 1 {
+			if app.Status.NumTrack < len(app.Songs[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]])-1 {
+				app.Status.NumTrack++
 			}
-			app.Status.NumTrack = 0
+		} else if app.Status.CurView == 0 {
+			if app.Status.NumTrack < len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])-1 {
+				app.Status.NumTrack++
+			} else if app.Status.NumAlbum[true] < len(app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 && app.Status.NumAlbum[false] == -1 {
+				app.Status.NumAlbum[true]++
+				if app.Status.CurPos[true] > app.Height-6 {
+					app.Status.ScrOffset[true]++
+				} else {
+					app.Status.CurPos[true]++
+				}
+				app.Status.NumTrack = 0
+			}
 		}
 	case false:
-		high = len(app.Artists)
-		if app.ArtistsMap[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]] ||
-			app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] == "" {
-			if app.Status.NumAlbum[false] < len(app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 {
+		high = len(what)
+		if app.ArtistsMap[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]] ||
+			what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] == "" {
+			if app.Status.NumAlbum[false] < len(app.Albums[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 {
 				app.Status.NumAlbum[false]++
 				app.Status.NumAlbum[true] = app.Status.NumAlbum[false]
 
 				app.Status.CurPos[true] = 1
 			}
-
 		} else {
 			app.Status.NumAlbum[false] = -1
 			app.Status.NumAlbum[true] = 0
 		}
 
 		app.Status.NumTrack = 0
-		app.Status.CurPos[true] = 2
+		if app.Status.CurView == 0 {
+			app.Status.CurPos[true] = 2
+		} else {
+			app.Status.CurPos[true] = 1
+		}
 		app.Status.ScrOffset[true] = 0
 
 	}
@@ -251,8 +288,8 @@ func (app *App) downEntry() {
 			app.Status.CurPos[app.Status.InTracks]++
 		}
 	}
-	if !app.Status.InTracks {
-		if app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] != "" {
+	if !app.Status.InTracks && app.Status.CurView == 0 {
+		if what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] != "" {
 			app.Status.NumAlbum[false] = -1
 			app.Status.NumAlbum[true] = 0
 		} else {

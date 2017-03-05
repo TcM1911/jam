@@ -61,6 +61,7 @@ type Status struct {
 	ScrOffset map[bool]int
 	Offset    int
 	CurPos    map[bool]int
+	CurView   int
 	NumAlbum  map[bool]int
 	InTracks  bool
 	InSearch  bool
@@ -87,6 +88,7 @@ type App struct {
 	DB         *bolt.DB
 	ArtistsMap map[string]bool
 	Artists    sort.StringSlice
+	Playlists  sort.StringSlice
 	Songs      map[string][]string
 	Albums     map[string][]string
 
@@ -132,6 +134,7 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 				false: 1, // same as in scrOffset. -1 is because the artist is unfolded (yet)
 				true:  2,
 			},
+			CurView: 0,
 			NumAlbum: map[bool]int{
 				false: -1, // same as in scrOffset. -1 is because the artist is unfolded (yet)
 				true:  0,
@@ -149,9 +152,23 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 func (app *App) Run() {
 	defer app.Screen.Fini()
 	app.populateArtists()
+	app.populatePlaylists()
 	// log.Printf("Artists done")
 	go app.player()
 	app.mainLoop()
+}
+
+func (app *App) populatePlaylists() {
+	app.Playlists = sort.StringSlice{}
+	app.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Playlists"))
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			app.Playlists = append(app.Playlists, string(k))
+		}
+
+		return nil
+	})
 }
 
 func (app *App) populateArtists() {
@@ -184,13 +201,19 @@ func (app *App) populateArtists() {
 	})
 }
 
-func (app *App) populateSongs() {
+func (app *App) populateSongs(what []string) {
 	app.Songs = map[string][]string{}
 	if err := app.DB.View(func(tx *bolt.Tx) error {
-		l := tx.Bucket([]byte("Library"))
-		i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
-		b := l.Bucket([]byte(app.Artists[i-app.numAlb(i)]))
-		c := b.Cursor()
+		var b *bolt.Bucket
+		var c *bolt.Cursor
+		if app.Status.CurView == 0 {
+			i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-app.numAlb(i)]))
+		} else if app.Status.CurView == 1 {
+			b = tx.Bucket([]byte("Playlists"))
+		}
+		c = b.Cursor()
+
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if v == nil {
 				cc := b.Bucket(k).Cursor()
@@ -198,18 +221,15 @@ func (app *App) populateSongs() {
 					app.Songs[string(k)] = append(app.Songs[string(k)], string(vv))
 				}
 			}
-
 		}
-
 		return nil
-
 	}); err != nil {
 		log.Fatalf("Can't populate songs: %s", err)
 	}
 
 }
 
-func (app *App) search() {
+func (app *App) search(what []string) {
 	app.Status.InTracks = false
 	app.Status.InSearch = true
 	app.Status.NumTrack = 0
@@ -238,11 +258,11 @@ func (app *App) search() {
 				return
 			}
 		}
-		app.searchQuery()
+		app.searchQuery(what)
 	}
 }
 
-func (app *App) searchQuery() {
+func (app *App) searchQuery(what []string) {
 	app.Status.NumAlbum[false] = -1
 	var i int
 	if !app.Status.InSearch {
@@ -250,7 +270,7 @@ func (app *App) searchQuery() {
 	}
 	if len(app.Status.Query) > 0 {
 		for i < len(app.Artists) {
-			if strings.HasPrefix(strings.ToLower(app.Artists[i]), strings.ToLower(string(app.Status.Query))) {
+			if strings.HasPrefix(strings.ToLower(what[i]), strings.ToLower(string(app.Status.Query))) {
 				if i > 2 {
 					app.Status.ScrOffset[false] = i - 2
 					app.Status.CurPos[false] = 3
@@ -258,7 +278,7 @@ func (app *App) searchQuery() {
 					app.Status.ScrOffset[false] = 0
 					app.Status.CurPos[false] = i + 1
 				}
-				app.updateUI()
+				app.updateUI(what)
 				return
 			}
 			i++
@@ -297,18 +317,19 @@ func (app *App) randomizeArtists() {
 	}
 
 	app.Artists = temp
-	app.updateUI()
+	app.updateUI(app.Artists)
 
 }
 
 func (app *App) mainLoop() {
+	var what sort.StringSlice
 	for {
 		app.Screen.Show()
 		ev := app.Screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			app.Width, app.Height = app.Screen.Size()
-			app.updateUI()
+			app.updateUI(what)
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape:
@@ -324,21 +345,23 @@ func (app *App) mainLoop() {
 			case tcell.KeyTab:
 				app.toggleView()
 			case tcell.KeyUp:
-				app.upEntry()
+				app.upEntry(what)
 			case tcell.KeyDown:
-				app.downEntry()
+				app.downEntry(what)
 			case tcell.KeyEnter:
 				app.Status.State <- play
+			case tcell.KeyCtrlSpace:
+				app.toggleTab()
 			}
 			switch ev.Rune() {
 			case '/':
-				app.search()
+				app.search(what)
 			case 'q':
 				return
 			case 'j':
-				app.downEntry()
+				app.downEntry(what)
 			case 'k':
-				app.upEntry()
+				app.upEntry(what)
 			case ' ':
 				app.toggleAlbums()
 			case 'u':
@@ -358,11 +381,16 @@ func (app *App) mainLoop() {
 			case 'z':
 				app.Status.State <- prev
 			case 'n':
-				app.searchQuery()
+				app.searchQuery(what)
 			case 'R':
 				app.randomizeArtists()
 			}
 		}
-		app.updateUI()
+		if app.Status.CurView == 0 {
+			what = app.Artists
+		} else if app.Status.CurView == 1 {
+			what = app.Playlists
+		}
+		app.updateUI(what)
 	}
 }
