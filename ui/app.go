@@ -61,6 +61,7 @@ type Status struct {
 	ScrOffset map[bool]int
 	Offset    int
 	CurPos    map[bool]int
+	CurView   int
 	NumAlbum  map[bool]int
 	InTracks  bool
 	InSearch  bool
@@ -133,6 +134,7 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 				false: 1, // same as in scrOffset. -1 is because the artist is unfolded (yet)
 				true:  2,
 			},
+			CurView: 0,
 			NumAlbum: map[bool]int{
 				false: -1, // same as in scrOffset. -1 is because the artist is unfolded (yet)
 				true:  0,
@@ -204,10 +206,10 @@ func (app *App) populateSongs(what []string) {
 	if err := app.DB.View(func(tx *bolt.Tx) error {
 		var b *bolt.Bucket
 		var c *bolt.Cursor
-		if curView == 0 {
+		if app.Status.CurView == 0 {
 			i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
 			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-app.numAlb(i)]))
-		} else if curView == 1 {
+		} else if app.Status.CurView == 1 {
 			b = tx.Bucket([]byte("Playlists"))
 		}
 		c = b.Cursor()
@@ -384,9 +386,9 @@ func (app *App) mainLoop() {
 				app.randomizeArtists()
 			}
 		}
-		if curView == 0 {
+		if app.Status.CurView == 0 {
 			what = app.Artists
-		} else if curView == 1 {
+		} else if app.Status.CurView == 1 {
 			what = app.Playlists
 		}
 		app.updateUI(what)

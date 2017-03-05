@@ -54,7 +54,7 @@ func CheckCreds(db *bolt.DB, lastFM *bool) (*gmusic.GMusic, *lastfm.Client, stri
 		if err != nil {
 			return nil, nil, "", err
 		}
-		fmt.Println("Syncing database is in order, may take a few seconds")
+		fmt.Println("Syncing database, may take a few seconds (will take longer if you have a lot of playlists)")
 		err = music.RefreshLibrary(db, gm)
 	}
 	if err != nil {

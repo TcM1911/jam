@@ -21,7 +21,7 @@
 package ui
 
 func (app *App) numAlb(k int) int {
-	if curView == 0 {
+	if app.Status.CurView == 0 {
 		var i int
 		for app.Artists[k] == "" {
 			i++
@@ -97,7 +97,7 @@ func (app *App) toggleView() {
 }
 
 func (app *App) toggleAlbums() {
-	if curView == 0 {
+	if app.Status.CurView == 0 {
 		app.Status.NumAlbum[false] = -1
 		i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
 		app.ArtistsMap[app.Artists[i-app.numAlb(i)]] = !app.ArtistsMap[app.Artists[i-app.numAlb(i)]]
@@ -115,15 +115,18 @@ func (app *App) toggleAlbums() {
 }
 
 func (app *App) toggleTab() {
-	if curView == 0 && len(app.Playlists) != 0 {
-		curView = 1
-	} else if curView == 1 && len(app.Artists) != 0 {
-		curView = 0
+	if app.Status.CurView == 0 && len(app.Playlists) != 0 {
+		app.Status.CurView = 1
+		app.Status.CurPos[true] = 1
+	} else if app.Status.CurView == 1 && len(app.Artists) != 0 {
+		app.Status.CurView = 0
+		app.Status.CurPos[true] = 2
 	}
-	app.Status.CurPos[true] = 2
+	app.Status.InTracks = false
 	app.Status.CurPos[false] = 1
 	app.Status.ScrOffset[false] = 0
 	app.Status.ScrOffset[true] = 0
+	app.Status.NumTrack = 0
 
 }
 
@@ -158,10 +161,14 @@ func (app *App) upEntry(what []string) {
 	switch app.Status.InTracks {
 	case false:
 		app.Status.NumTrack = 0
-		app.Status.CurPos[true] = 2
+		if app.Status.CurView == 0 {
+			app.Status.CurPos[true] = 2
+		} else {
+			app.Status.CurPos[true] = 1
+		}
 		app.Status.ScrOffset[true] = 0
 	case true:
-		if app.Status.NumAlbum[false] == -1 {
+		if app.Status.NumAlbum[false] == -1 && app.Status.CurView == 0 {
 			if app.Status.NumTrack > 0 {
 				app.Status.NumTrack--
 			} else if app.Status.NumTrack == 0 && app.Status.NumAlbum[true] > 0 {
@@ -217,7 +224,9 @@ func (app *App) downEntry(what []string) {
 	switch app.Status.InTracks {
 	case true:
 		high = 0
-		if app.Status.NumAlbum[false] == -1 {
+		if app.Status.CurView == 1 {
+			high = len(app.Songs[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]])
+		} else if app.Status.NumAlbum[false] == -1 {
 			for _, sngs := range app.Songs {
 				high++
 				for _ = range sngs {
@@ -228,16 +237,22 @@ func (app *App) downEntry(what []string) {
 			high = len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])
 		}
 
-		if app.Status.NumTrack < len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])-1 {
-			app.Status.NumTrack++
-		} else if app.Status.NumAlbum[true] < len(app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 && app.Status.NumAlbum[false] == -1 {
-			app.Status.NumAlbum[true]++
-			if app.Status.CurPos[true] > app.Height-6 {
-				app.Status.ScrOffset[true]++
-			} else {
-				app.Status.CurPos[true]++
+		if app.Status.CurView == 1 {
+			if app.Status.NumTrack < len(app.Songs[what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]]])-1 {
+				app.Status.NumTrack++
 			}
-			app.Status.NumTrack = 0
+		} else if app.Status.CurView == 0 {
+			if app.Status.NumTrack < len(app.Songs[app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]][app.Status.NumAlbum[true]]])-1 {
+				app.Status.NumTrack++
+			} else if app.Status.NumAlbum[true] < len(app.Albums[app.Artists[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]-1*(app.Status.NumAlbum[false]+1)]])-1 && app.Status.NumAlbum[false] == -1 {
+				app.Status.NumAlbum[true]++
+				if app.Status.CurPos[true] > app.Height-6 {
+					app.Status.ScrOffset[true]++
+				} else {
+					app.Status.CurPos[true]++
+				}
+				app.Status.NumTrack = 0
+			}
 		}
 	case false:
 		high = len(what)
@@ -249,14 +264,17 @@ func (app *App) downEntry(what []string) {
 
 				app.Status.CurPos[true] = 1
 			}
-
 		} else {
 			app.Status.NumAlbum[false] = -1
 			app.Status.NumAlbum[true] = 0
 		}
 
 		app.Status.NumTrack = 0
-		app.Status.CurPos[true] = 2
+		if app.Status.CurView == 0 {
+			app.Status.CurPos[true] = 2
+		} else {
+			app.Status.CurPos[true] = 1
+		}
 		app.Status.ScrOffset[true] = 0
 
 	}
@@ -270,7 +288,7 @@ func (app *App) downEntry(what []string) {
 			app.Status.CurPos[app.Status.InTracks]++
 		}
 	}
-	if !app.Status.InTracks {
+	if !app.Status.InTracks && app.Status.CurView == 0 {
 		if what[app.Status.CurPos[false]-1+app.Status.ScrOffset[false]] != "" {
 			app.Status.NumAlbum[false] = -1
 			app.Status.NumAlbum[true] = 0

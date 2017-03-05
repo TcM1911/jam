@@ -33,7 +33,6 @@ import (
 )
 
 var (
-	curView  = 0                // current view, 0 = artists, 1 = playlists
 	defDur   = time.Duration(0) // this and below are used for when nothing is playing
 	defTrack = &music.BTrack{}
 )
@@ -72,9 +71,9 @@ func (app *App) hlEntry(what []string) {
 
 	if app.Status.InTracks {
 		js := new(music.BTrack)
-		if curView == 0 {
+		if app.Status.CurView == 0 {
 			song = app.Songs[app.Albums[what[i-app.numAlb(i)]][app.Status.NumAlbum[true]]][app.Status.NumTrack]
-		} else if curView == 1 {
+		} else if app.Status.CurView == 1 {
 			song = app.Songs[what[i]][app.Status.NumTrack]
 		}
 		err := json.Unmarshal([]byte(song), js)
@@ -87,9 +86,9 @@ func (app *App) hlEntry(what []string) {
 
 func (app *App) printHeader() {
 	fill(app.Screen, 0, 0, app.Width, 1, ' ', hlStyle)
-	if curView == 0 {
+	if app.Status.CurView == 0 {
 		print(app.Screen, 1, 0, hlStyle, "Artist / Album")
-	} else if curView == 1 {
+	} else if app.Status.CurView == 1 {
 		print(app.Screen, 1, 0, hlStyle, "Playlist")
 	}
 	print(app.Screen, app.Width/3+2, 0, hlStyle, "Track")
@@ -157,7 +156,28 @@ func (app *App) printSongs(beg, end int, what []string) {
 	var js *music.BTrack
 	app.populateSongs(what)
 	i, k := 0, 1
-	if app.Status.NumAlbum[false] == -1 {
+	if app.Status.CurView == 1 {
+		que := []*music.BTrack{}
+		j := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+		if len(app.Songs[what[j]]) < end {
+			end = len(app.Songs[what[j]])
+		}
+		for _, song := range app.Songs[what[j]] {
+			js = new(music.BTrack)
+			json.Unmarshal([]byte(song), js)
+			if i >= beg && i < end {
+				printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
+				k++
+			}
+			que = append(que, js)
+			i++
+		}
+		for l := app.numAlb(j); l > 1; l-- {
+			app.Status.Queue = append(app.Status.Queue, []*music.BTrack{})
+		}
+		app.Status.Queue = append(app.Status.Queue, que)
+
+	} else if app.Status.NumAlbum[false] == -1 {
 		j := app.numSongs()
 		if j < end {
 			end = j
@@ -200,9 +220,9 @@ func (app *App) printSongs(beg, end int, what []string) {
 			json.Unmarshal([]byte(song), js)
 			if i >= beg && i < end {
 				printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
-				que = append(que, js)
 				k++
 			}
+			que = append(que, js)
 			i++
 		}
 		for l := app.numAlb(j); l > 1; l-- {
