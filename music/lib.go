@@ -22,7 +22,6 @@ package music
 
 import (
 	"encoding/json"
-	"log"
 	"strconv"
 	"strings"
 
@@ -91,7 +90,6 @@ func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
 				err = nil
 				continue
 			}
-			log.Println(track)
 
 			for _, plEntry := range playlists {
 				if entry.PlaylistId == plEntry.ID {
