@@ -33,7 +33,13 @@ func fullDbPath() string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(os.Getenv("APPDATA"), "jamdb")
 	}
-	return filepath.Join(os.Getenv("HOME"), ".local/share/jamdb")
+	path := filepath.Join(os.Getenv("HOME"), ".local2", "share")
+	_, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		os.MkdirAll(path, 0755)
+	}
+	return filepath.Join(path, "jamdb")
 }
 
 func Open() (*bolt.DB, error) {
