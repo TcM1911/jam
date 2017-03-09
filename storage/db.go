@@ -33,7 +33,7 @@ func fullDbPath() string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(os.Getenv("APPDATA"), "jamdb")
 	}
-	path := filepath.Join(os.Getenv("HOME"), ".local2", "share")
+	path := filepath.Join(os.Getenv("HOME"), ".local", "share")
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {
