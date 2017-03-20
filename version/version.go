@@ -21,4 +21,4 @@
 package version
 
 // Version represents the application version using SemVer
-const Version string = "0.5.0a"
+const Version string = "0.6.0a"

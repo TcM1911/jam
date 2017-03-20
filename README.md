@@ -57,6 +57,7 @@ The keybindins are mostly the same as in Cmus:
 | space         | toggle albums                                                                |
 | R             | randomize artists                                                            |
 | Ctrl+Space    | toggle view (playlists/artists)                                              |
+| r             | repeat current track                                                         |
 
 [1]: https://github.com/mjibson/moggio
 
