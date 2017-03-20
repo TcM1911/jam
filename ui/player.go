@@ -41,11 +41,11 @@ type OutputStream interface {
 func (app *App) player() {
 	stop := make(chan bool)
 	pause := make(chan bool)
-	playing := false
-	paused := false
-	next := false
-	prev := false
-	trackScrobbled := false
+	var playing bool
+	var paused bool
+	var next bool
+	var prev bool
+	var trackScrobbled bool
 	pauseDur := time.Duration(0)
 	var pauseTimer time.Time
 	var songDur time.Duration
@@ -156,11 +156,14 @@ func (app *App) player() {
 									go app.LastFM.Scrobble(track.Artist, track.Title, timer.Unix())
 								}
 							}
+
 							switch err.(type) {
 							case mpa.MalformedStream:
 								continue
 							}
-							if !prev {
+							if app.Status.RepeatTrack {
+
+							} else if !prev {
 								if ntrack < len(queueTemp[album])-1 {
 									ntrack++
 								} else if album < len(queueTemp)-1 {
@@ -200,6 +203,7 @@ func (app *App) player() {
 							if app.Status.LastFM && app.LastFM != nil {
 								go app.LastFM.NowPlaying(track.Title, track.Artist)
 							}
+
 							continue
 						}
 

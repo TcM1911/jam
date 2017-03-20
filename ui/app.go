@@ -70,8 +70,8 @@ type Status struct {
 	Queue     [][]*music.BTrack // playlist, updated on each movement of cursor in artists view
 	Query     []rune            // search query
 
-	State chan int // player's state: play, pause, stop, etc
-
+	State       chan int // player's state: play, pause, stop, etc
+	RepeatTrack bool
 }
 
 // App define the UI application
@@ -384,6 +384,8 @@ func (app *App) mainLoop() {
 				app.searchQuery(what)
 			case 'R':
 				app.randomizeArtists()
+			case 'r':
+				app.Status.RepeatTrack = !app.Status.RepeatTrack
 			}
 		}
 		if app.Status.CurView == 0 {

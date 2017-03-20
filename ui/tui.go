@@ -106,24 +106,33 @@ func (app *App) printStatus() {
 }
 
 func (app *App) printBar(dur time.Duration, track *music.BTrack) {
-	strdur := ""
-	str := fmt.Sprintf(" %02v:%02v %v - %v ", int(dur.Minutes()), int(dur.Seconds())%60,
+	var str string
+	var leng int
+	str = fmt.Sprintf(" %02v:%02v %v - %v ", int(dur.Minutes()), int(dur.Seconds())%60,
 		track.Artist, track.Title)
-	lenstr := 0
 	for _, r := range str {
-		lenstr += runewidth.RuneWidth(r)
+		leng += runewidth.RuneWidth(r)
 	}
-	print(app.Screen, 0, app.Height-2, barStyle, str)
-	leng := app.Width - lenstr
+	leng = app.Width - leng
+
+	if app.Status.RepeatTrack {
+		leng -= 4
+	}
+
 	durat, _ := strconv.Atoi(track.DurationMillis)
 	dura := time.Duration(durat) * time.Millisecond
 	for i := 0.0; i < float64(leng)/dura.Seconds()*dur.Seconds(); i += 1.0 {
-		strdur += "—"
+		str += "—"
 	}
-	for len(strdur) < leng {
-		strdur += " "
+	for len(str) < app.Width {
+		str += " "
 	}
-	print(app.Screen, lenstr, app.Height-2, barStyle, strdur)
+
+	print(app.Screen, 0, app.Height-2, barStyle, str)
+
+	if app.Status.RepeatTrack {
+		print(app.Screen, app.Width-4, app.Height-2, barStyle, " [r]")
+	}
 	app.Screen.Show()
 }
 
