@@ -3,7 +3,7 @@
 This is my first Go program, I wanted to listen to Google Play Music on console,
 so I wrote a player. It is inspired by Matt Jibson's [Moggio](https://github.com/mjibson/moggio/) and uses one of
 his libraries. You can see it in action if you follow this link:
-https://dl.dropboxusercontent.com/u/3651269/out-2.ogv
+https://www.dropbox.com/s/ygai22mzgmtd2ri/out-2.ogv
 
 The features it has are:
 
