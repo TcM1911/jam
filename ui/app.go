@@ -323,7 +323,6 @@ func (app *App) randomizeArtists() {
 
 func (app *App) mainLoop() {
 	var what sort.StringSlice
-	var lastRune = '-'
 	for {
 		app.Screen.Show()
 		ev := app.Screen.PollEvent()
@@ -390,15 +389,7 @@ func (app *App) mainLoop() {
 			case 'G':
 				app.scrollDown()
 			case 'g':
-				if lastRune == 'g' {
-					app.scrollUp()
-				}
-			}
-
-			if ev.Key() == tcell.KeyRune {
-				lastRune = ev.Rune()
-			} else {
-				lastRune = '-'
+				app.scrollUp()
 			}
 		}
 		if app.Status.CurView == 0 {

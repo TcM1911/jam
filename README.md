@@ -52,7 +52,7 @@ The keybindings are mostly the same as in Cmus:
 | escape, q     | quit                                                                         |
 | up arrow, k   | scroll up                                                                    |
 | down arrow, j | scroll down                                                                  |
-| Home, gg      | scroll to top                                                                |
+| Home, g       | scroll to top                                                                |
 | End, G        | scroll to bottom                                                             |
 | space         | toggle albums                                                                |
 | R             | randomize artists                                                            |
