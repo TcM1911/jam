@@ -36,7 +36,7 @@ If you have an x86 system, you'll have to compile it yourself, sorry
 
 Contributions are welcome!
 
-The keybindins are mostly the same as in Cmus:
+The keybindings are mostly the same as in Cmus:
 
 | Key           | Action                                                                       |
 |---------------|------------------------------------------------------------------------------|
@@ -52,8 +52,8 @@ The keybindins are mostly the same as in Cmus:
 | escape, q     | quit                                                                         |
 | up arrow, k   | scroll up                                                                    |
 | down arrow, j | scroll down                                                                  |
-| Home          | scroll to top                                                                |
-| End           | scroll to bottom                                                             |
+| Home, gg      | scroll to top                                                                |
+| End, G        | scroll to bottom                                                             |
 | space         | toggle albums                                                                |
 | R             | randomize artists                                                            |
 | Ctrl+Space    | toggle view (playlists/artists)                                              |
