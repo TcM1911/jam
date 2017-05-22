@@ -386,6 +386,10 @@ func (app *App) mainLoop() {
 				app.randomizeArtists()
 			case 'r':
 				app.Status.RepeatTrack = !app.Status.RepeatTrack
+			case 'G':
+				app.scrollDown()
+			case 'g':
+				app.scrollUp()
 			}
 		}
 		if app.Status.CurView == 0 {
