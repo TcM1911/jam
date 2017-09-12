@@ -1,3 +1,5 @@
+### This project is no longer maintained as I made a switch from i3 to Gnome and no longer use CLI apps. If you want to take over drop me an email
+
 # jam
 
 This is my first Go program, I wanted to listen to Google Play Music on console,
