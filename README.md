@@ -72,3 +72,10 @@ TODO
 - implement search within the GPM global database
 - feature requests are welcome as well
 
+
+Contributors (in order of the number of commits):
+- @nlamirault
+- @koron
+- @avilanicolas
+- @felixonmars
+- @MartijnBraam
