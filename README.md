@@ -1,29 +1,29 @@
-### This project is no longer maintained as I made a switch from i3 to Gnome and no longer use CLI apps. If you want to take over drop me an email
+### This project is no longer maintained as I've made the switch from i3 to Gnome and I use CLI apps no longer. If you want to take over, drop me an email
 
 # jam
 
 This is my first Go program, I wanted to listen to Google Play Music on console,
-so I wrote a player. It is inspired by Matt Jibson's [Moggio](https://github.com/mjibson/moggio/) and uses one of
+so I've written a player. It is inspired by Matt Jibson's [Moggio](https://github.com/mjibson/moggio/) and uses one of
 his libraries. You can see it in action if you follow this link:
 https://www.dropbox.com/s/ygai22mzgmtd2ri/out-2.ogv
 
-The features it has are:
+It has the following features:
 
 - Last.fm scrobbling (use -lastfm flag)
-- populating a local database with the artists and albums you saved through the
+- populating the database with artists and albums you saved through the
   web interface (or by any other means)
 - searching within artists in the database
-- playing, pausing (buggy, I need help with it) , stopping, previous track, next
+- playing, pausing (buggy, I need help with it), stopping, previous track, next
   track
-- the interface is Cmus rip off, I've only added a progress bar
-- this player no longer lists artists in random order - if you want to randomize
+- the interface is ripped off from Cmus, I only added a progress bar
+- this player no longer lists artists in random order - if you want to shuffle
   them press R
 
-In order to use this program you should be logged in in Google Play services on
-your phone, if you have no smartphone than this program, at its current state,
+In order to use this program you must be logged in in Google Play services on
+your phone, if you have no smartphone - this program, at its current state,
 is not for you
 
-If you use 2-factor authorisation with your Google account, you will have to
+If you use 2-factor authorization in your Google account, you must
 generate an app password, follow this link 
 https://security.google.com/settings/security/apppasswords
 
@@ -34,7 +34,7 @@ Windows users are all set
 
 
 
-If you have an x86 system, you'll have to compile it yourself, sorry
+If you have an x86 system, you'll have to compile it yourself, sorry for that
 
 Contributions are welcome!
 
@@ -67,7 +67,7 @@ The keybindings are mostly the same as in Cmus:
 
 TODO
 - make the interface detachable (like MOC)
-- make the binary able to receive comand line arguments for controlling playback
+- make the binary able to receive command line arguments for controlling playback
   (next track, pause, etc)
 - implement search within the GPM global database
 - feature requests are welcome as well
