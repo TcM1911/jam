@@ -1,4 +1,4 @@
-### This project is no longer maintained as I've made the switch from i3 to Gnome and I use CLI apps no longer. If you want to take over, drop me an email
+### This project is no longer maintained as I've made the switch from GPM to Deezer and I can't test it. If you want to take over, drop me an email
 
 # jam
 
