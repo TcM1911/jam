@@ -4,6 +4,7 @@ jam.exe
 
 # Files
 .DS_Store
+.idea
 
 # Editor swap files
 *.swp
