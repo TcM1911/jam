@@ -13,8 +13,8 @@ DIR = $(shell pwd)
 GO = go
 
 # GOX = gox -os="linux darwin windows freebsd openbsd netbsd"
-GOX = gox -os="linux"
-GOX_ARGS = "-output={{.Dir}}-$(VERSION)_{{.OS}}_{{.Arch}}"
+# GOX = gox -os="linux"
+# GOX_ARGS = "-output={{.Dir}}-$(VERSION)_{{.OS}}_{{.Arch}}"
 
 NO_COLOR=\033[0m
 OK_COLOR=\033[32;01m
@@ -48,7 +48,7 @@ init: ## Install requirements
 	@go get -u github.com/Masterminds/rmvcsdir
 	@go get -u github.com/golang/lint/golint
 	@go get -u github.com/kisielk/errcheck
-	@go get -u github.com/mitchellh/gox
+	# @go get -u github.com/mitchellh/gox
 
 .PHONY: deps
 deps: ## Install dependencies
@@ -82,6 +82,6 @@ errcheck: ## Launch go errcheck
 coverage: ## Launch code coverage
 	@$(foreach pkg,$(PKGS),$(GO) test -cover $(pkg) $(glide novendor) || exit;)
 
-gox: ## Make all binaries
-	@echo -e "$(OK_COLOR)[$(APP)] Create binaries $(NO_COLOR)"
-	$(GOX) $(GOX_ARGS) github.com/TcM1911/jamsonic
+# gox: ## Make all binaries
+# 	@echo -e "$(OK_COLOR)[$(APP)] Create binaries $(NO_COLOR)"
+# 	$(GOX) $(GOX_ARGS) github.com/TcM1911/jamsonic
