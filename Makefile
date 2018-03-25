@@ -58,7 +58,7 @@ deps: ## Install dependencies
 .PHONY: build
 build: ## Make binary
 	@echo -e "$(OK_COLOR)[$(APP)] Build $(NO_COLOR)"
-	@$(GO) build -ldflags="-s -w" .
+	@$(GO) build -o $(APP) -ldflags="-s -w" ./cmd/...
 
 .PHONY: test
 test: ## Launch unit tests
