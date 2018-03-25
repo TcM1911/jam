@@ -34,7 +34,7 @@ type linuxOutputStream struct {
 
 func makeOutputStream() (OutputStream, error) {
 	ss := pulse.SampleSpec{pulse.SAMPLE_S16LE, 44100, 2}
-	stream, err := pulse.Playback("jam", "jam", &ss)
+	stream, err := pulse.Playback("jamsonic", "jamsonic", &ss)
 	if err != nil {
 		return nil, fmt.Errorf("Can't playback from Pulse: %s", err)
 	}

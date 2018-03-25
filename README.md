@@ -1,6 +1,6 @@
 ### This project is no longer maintained as I've made the switch from GPM to Deezer and I can't test it. If you want to take over, drop me an email
 
-# jam
+# jamsonic
 
 This is my first Go program, I wanted to listen to Google Play Music on console,
 so I've written a player. It is inspired by Matt Jibson's [Moggio](https://github.com/mjibson/moggio/) and uses one of

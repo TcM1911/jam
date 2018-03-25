@@ -28,7 +28,7 @@ import (
 
 func Test_FullPathDirectory(t *testing.T) {
 	dir := fullDbPath()
-	if !strings.HasSuffix(dir, ".local/share/jamdb") {
+	if !strings.HasSuffix(dir, ".local/share/jamsonicdb") {
 		t.Fatalf("Invalid directory: %s\n", dir)
 	}
 }

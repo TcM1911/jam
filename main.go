@@ -29,16 +29,16 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/budkin/gmusic"
 
-	"github.com/budkin/jam/auth"
-	"github.com/budkin/jam/lastfm"
-	"github.com/budkin/jam/storage"
-	"github.com/budkin/jam/ui"
-	"github.com/budkin/jam/version"
+	"github.com/TcM1911/jamsonic/auth"
+	"github.com/TcM1911/jamsonic/lastfm"
+	"github.com/TcM1911/jamsonic/storage"
+	"github.com/TcM1911/jamsonic/ui"
+	"github.com/TcM1911/jamsonic/version"
 )
 
 const (
 	// BANNER is what is printed for help/info output.
-	BANNER = "Jam - %s\n"
+	BANNER = "Jamsonic - %s\n"
 )
 
 var (

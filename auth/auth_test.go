@@ -30,7 +30,7 @@ import (
 
 // tempfile returns a temporary file path.
 func tempfile() (string, error) {
-	f, _ := ioutil.TempFile("", "jamdb")
+	f, _ := ioutil.TempFile("", "jamsonicdb")
 	err := f.Close()
 	if err != nil {
 		return "", err

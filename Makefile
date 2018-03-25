@@ -1,4 +1,4 @@
-APP = jam
+APP = jamsonic
 
 VERSION=$(shell \
         grep "const Version" version/version.go \
@@ -23,8 +23,8 @@ WARN_COLOR=\033[33;01m
 
 MAKE_COLOR=\033[33;01m%-20s\033[0m
 
-MAIN = github.com/budkin/jam
-EXE = $(shell ls jam-*_*)
+MAIN = github.com/TcM1911/jamsonic
+EXE = $(shell ls jamsonic-*_*)
 
 PACKAGE=$(APP)-$(VERSION)
 ARCHIVE=$(PACKAGE).tar
@@ -84,4 +84,4 @@ coverage: ## Launch code coverage
 
 gox: ## Make all binaries
 	@echo -e "$(OK_COLOR)[$(APP)] Create binaries $(NO_COLOR)"
-	$(GOX) $(GOX_ARGS) github.com/budkin/jam
+	$(GOX) $(GOX_ARGS) github.com/TcM1911/jamsonic

@@ -36,8 +36,8 @@ import (
 	"github.com/gdamore/tcell"
 	// runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/budkin/jam/lastfm"
-	"github.com/budkin/jam/music"
+	"github.com/TcM1911/jamsonic/lastfm"
+	"github.com/TcM1911/jamsonic/music"
 )
 
 const (

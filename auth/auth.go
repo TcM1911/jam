@@ -27,9 +27,9 @@ import (
 	"github.com/budkin/gmusic"
 	"github.com/howeyc/gopass"
 
-	"github.com/budkin/jam/lastfm"
-	"github.com/budkin/jam/music"
-	"github.com/budkin/jam/storage"
+	"github.com/TcM1911/jamsonic/lastfm"
+	"github.com/TcM1911/jamsonic/music"
+	"github.com/TcM1911/jamsonic/storage"
 )
 
 func loginFromDatabase(db *bolt.DB) (*gmusic.GMusic, error) {
