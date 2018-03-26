@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,6 +28,7 @@ import (
 	"github.com/budkin/gmusic"
 	"github.com/howeyc/gopass"
 
+	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/music"
 	"github.com/TcM1911/jamsonic/storage"
@@ -43,8 +45,9 @@ func loginFromDatabase(db *bolt.DB) (*gmusic.GMusic, error) {
 	}, nil
 }
 
-func CheckCreds(db *bolt.DB, lastFM *bool) (*gmusic.GMusic, *lastfm.Client, string, error) {
+func CheckCreds(db *bolt.DB, lastFM *bool) (*gpm.Client, *lastfm.Client, string, error) {
 	gm, err := loginFromDatabase(db)
+	client := &gpm.Client{GMusic: gm}
 	if err != nil {
 		gm, err = authenticate()
 		if err != nil {
@@ -55,7 +58,7 @@ func CheckCreds(db *bolt.DB, lastFM *bool) (*gmusic.GMusic, *lastfm.Client, stri
 			return nil, nil, "", err
 		}
 		fmt.Println("Syncing database, may take a few seconds (will take longer if you have a lot of playlists)")
-		err = music.RefreshLibrary(db, gm)
+		err = music.RefreshLibrary(db, client)
 	}
 	if err != nil {
 		return nil, nil, "", err
@@ -85,11 +88,11 @@ func CheckCreds(db *bolt.DB, lastFM *bool) (*gmusic.GMusic, *lastfm.Client, stri
 	if sk != "" {
 		lmclient.Api.SetSession(sk)
 		*lastFM = true
-		return gm, lmclient, sk, nil
+		return client, lmclient, sk, nil
 
 	}
 
-	return gm, nil, "", nil
+	return client, nil, "", nil
 }
 
 func authenticate() (*gmusic.GMusic, error) {

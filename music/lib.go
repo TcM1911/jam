@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/boltdb/bolt"
-	"github.com/budkin/gmusic"
 )
 
 type BTrack struct {
@@ -41,20 +42,20 @@ type BTrack struct {
 	Year           uint32
 }
 
-func RefreshLibrary(db *bolt.DB, gm *gmusic.GMusic) error {
+func RefreshLibrary(db *bolt.DB, provider jamsonic.Provider) error {
 	//db, err := bolt.Open(fullDbPath(), 0600, nil)
 	//checkErr(err)
 	//defer db.Close()
 	var err error
-	tracks, err := gm.ListTracks()
+	tracks, err := provider.ListTracks()
 	if err != nil {
 		return err
 	}
-	playlists, err := gm.ListPlaylists()
+	playlists, err := provider.ListPlaylists()
 	if err != nil {
 		return err
 	}
-	entries, err := gm.ListPlaylistEntries()
+	entries, err := provider.ListPlaylistEntries()
 	if err != nil {
 		return err
 	}
@@ -62,17 +63,16 @@ func RefreshLibrary(db *bolt.DB, gm *gmusic.GMusic) error {
 	if err != nil {
 		return err
 	}
-	err = addPlaylists(db, gm, playlists, entries)
+	err = addPlaylists(db, provider, playlists, entries)
 	if err != nil {
 		return err
 	}
 	return err
 }
 
-func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
-	playlists []*gmusic.Playlist, entries []*gmusic.PlaylistEntry) error {
+func addPlaylists(db *bolt.DB, provider jamsonic.Provider, playlists []*jamsonic.Playlist, entries []*jamsonic.PlaylistEntry) error {
 	var pl *bolt.Bucket
-	var track *gmusic.Track
+	var track *jamsonic.Track
 	var plName string
 	var buf []byte
 	var count int
@@ -85,7 +85,7 @@ func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
 		}
 
 		for _, entry := range entries {
-			track, err = gm.GetTrackInfo(entry.TrackId)
+			track, err = provider.GetTrackInfo(entry.TrackId)
 			if err != nil {
 				err = nil
 				continue
@@ -122,7 +122,7 @@ func addPlaylists(db *bolt.DB, gm *gmusic.GMusic,
 	})
 	return err
 }
-func addTracks(db *bolt.DB, tracks []*gmusic.Track) error {
+func addTracks(db *bolt.DB, tracks []*jamsonic.Track) error {
 	var artist *bolt.Bucket
 	var mixedAlbum bool
 	var buf []byte

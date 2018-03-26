@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,10 +33,10 @@ import (
 	// "time"
 
 	"github.com/boltdb/bolt"
-	"github.com/budkin/gmusic"
 	"github.com/gdamore/tcell"
 	// runewidth "github.com/mattn/go-runewidth"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/music"
 )
@@ -80,8 +81,8 @@ type App struct {
 	Width  int
 	Height int
 
-	GMusic *gmusic.GMusic
-	LastFM *lastfm.Client
+	Provider jamsonic.Provider
+	LastFM   *lastfm.Client
 
 	// Better:
 	// Database *Database
@@ -97,7 +98,7 @@ type App struct {
 }
 
 // New creates a new UI
-func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt.DB) (*App, error) {
+func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *bolt.DB) (*App, error) {
 	var lastfmStatus bool
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -117,7 +118,7 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 		Screen:     screen,
 		Width:      width,
 		Height:     height,
-		GMusic:     gmusic,
+		Provider:   provider,
 		LastFM:     lmclient,
 		DB:         db,
 		ArtistsMap: map[string]bool{},
@@ -365,7 +366,7 @@ func (app *App) mainLoop() {
 			case ' ':
 				app.toggleAlbums()
 			case 'u':
-				err := music.RefreshLibrary(app.DB, app.GMusic)
+				err := music.RefreshLibrary(app.DB, app.Provider)
 				if err != nil {
 					log.Fatalf("Can't refresh library: %s", err)
 				}

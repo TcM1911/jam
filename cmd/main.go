@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,8 +28,8 @@ import (
 	"os"
 
 	"github.com/boltdb/bolt"
-	"github.com/budkin/gmusic"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/auth"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
@@ -71,20 +72,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Can't open database: %s", err)
 	}
-	gmusic, lmclient, lastfm, err := auth.CheckCreds(db, &lastFM)
+	provider, lmclient, lastfm, err := auth.CheckCreds(db, &lastFM)
 	if err != nil {
 		log.Fatalf("Can't connect to Google Music: %s", err)
 	}
 	defer db.Close()
 
-	if err = doUI(gmusic, lmclient, lastfm, db); err != nil {
+	if err = doUI(provider, lmclient, lastfm, db); err != nil {
 		log.Fatalf("Can't start UI: %s", err)
 	}
 
 }
 
-func doUI(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt.DB) error {
-	app, err := ui.New(gmusic, lmclient, lastfm, db)
+func doUI(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *bolt.DB) error {
+	app, err := ui.New(provider, lmclient, lastfm, db)
 	if err != nil {
 		return err
 	}

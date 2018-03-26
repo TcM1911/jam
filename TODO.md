@@ -2,7 +2,7 @@
 
 - [ ] Make library refresh async.
 - [x] Move main binary to cmd folder.
-- [ ] Create music provider interface and port GPM.
+- [x] Create music provider interface and port GPM.
 - [ ] Add SubSonic provider.
 - [ ] Create player interface.
 - [ ] Add support for macOS.
