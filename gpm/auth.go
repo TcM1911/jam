@@ -19,7 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package auth
+package gpm
 
 import (
 	"fmt"
@@ -28,7 +28,6 @@ import (
 	"github.com/budkin/gmusic"
 	"github.com/howeyc/gopass"
 
-	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/music"
 	"github.com/TcM1911/jamsonic/storage"
@@ -45,9 +44,9 @@ func loginFromDatabase(db *bolt.DB) (*gmusic.GMusic, error) {
 	}, nil
 }
 
-func CheckCreds(db *bolt.DB, lastFM *bool) (*gpm.Client, *lastfm.Client, string, error) {
+func CheckCreds(db *bolt.DB, lastFM *bool) (*Client, *lastfm.Client, string, error) {
 	gm, err := loginFromDatabase(db)
-	client := &gpm.Client{GMusic: gm}
+	client := &Client{GMusic: gm}
 	if err != nil {
 		gm, err = authenticate()
 		if err != nil {
