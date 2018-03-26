@@ -30,7 +30,7 @@ import (
 	"github.com/boltdb/bolt"
 
 	"github.com/TcM1911/jamsonic"
-	"github.com/TcM1911/jamsonic/auth"
+	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
 	"github.com/TcM1911/jamsonic/ui"
@@ -72,7 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Can't open database: %s", err)
 	}
-	provider, lmclient, lastfm, err := auth.CheckCreds(db, &lastFM)
+	provider, lmclient, lastfm, err := gpm.CheckCreds(db, &lastFM)
 	if err != nil {
 		log.Fatalf("Can't connect to Google Music: %s", err)
 	}
