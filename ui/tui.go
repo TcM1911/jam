@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,14 +28,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/TcM1911/jamsonic"
 	runewidth "github.com/mattn/go-runewidth"
-
-	"github.com/TcM1911/jamsonic/music"
 )
 
 var (
 	defDur   = time.Duration(0) // this and below are used for when nothing is playing
-	defTrack = &music.BTrack{}
+	defTrack = &jamsonic.Track{}
 )
 
 func (app *App) updateUI(what []string) {
@@ -70,7 +70,7 @@ func (app *App) hlEntry(what []string) {
 	}
 
 	if app.Status.InTracks {
-		js := new(music.BTrack)
+		js := new(jamsonic.Track)
 		if app.Status.CurView == 0 {
 			song = app.Songs[app.Albums[what[i-app.numAlb(i)]][app.Status.NumAlbum[true]]][app.Status.NumTrack]
 		} else if app.Status.CurView == 1 {
@@ -105,7 +105,7 @@ func (app *App) printStatus() {
 	}
 }
 
-func (app *App) printBar(dur time.Duration, track *music.BTrack) {
+func (app *App) printBar(dur time.Duration, track *jamsonic.Track) {
 	var str string
 	var leng int
 	str = fmt.Sprintf(" %02v:%02v %v - %v ", int(dur.Minutes()), int(dur.Seconds())%60,
@@ -161,18 +161,18 @@ func (app *App) printAlbum(y int, alb string) {
 }
 
 func (app *App) printSongs(beg, end int, what []string) {
-	app.Status.Queue = [][]*music.BTrack{}
-	var js *music.BTrack
+	app.Status.Queue = [][]*jamsonic.Track{}
+	var js *jamsonic.Track
 	app.populateSongs(what)
 	i, k := 0, 1
 	if app.Status.CurView == 1 {
-		que := []*music.BTrack{}
+		que := []*jamsonic.Track{}
 		j := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
 		if len(app.Songs[what[j]]) < end {
 			end = len(app.Songs[what[j]])
 		}
 		for _, song := range app.Songs[what[j]] {
-			js = new(music.BTrack)
+			js = new(jamsonic.Track)
 			json.Unmarshal([]byte(song), js)
 			if i >= beg && i < end {
 				printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
@@ -182,7 +182,7 @@ func (app *App) printSongs(beg, end int, what []string) {
 			i++
 		}
 		for l := app.numAlb(j); l > 1; l-- {
-			app.Status.Queue = append(app.Status.Queue, []*music.BTrack{})
+			app.Status.Queue = append(app.Status.Queue, []*jamsonic.Track{})
 		}
 		app.Status.Queue = append(app.Status.Queue, que)
 
@@ -198,14 +198,14 @@ func (app *App) printSongs(beg, end int, what []string) {
 		sort.Strings(keys)
 		app.LastAlbum = keys[len(keys)-1]
 		for _, key := range keys {
-			que := []*music.BTrack{}
+			que := []*jamsonic.Track{}
 			if i >= beg && i < end {
 				app.printAlbum(k, key)
 				k++
 			}
 			i++
 			for _, song := range app.Songs[key] {
-				js = new(music.BTrack)
+				js = new(jamsonic.Track)
 				json.Unmarshal([]byte(song), js)
 				if i >= beg && i < end {
 					printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
@@ -218,14 +218,14 @@ func (app *App) printSongs(beg, end int, what []string) {
 
 		}
 	} else {
-		que := []*music.BTrack{}
+		que := []*jamsonic.Track{}
 		j := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
 		if len(app.Songs[app.Albums[app.Artists[j-app.numAlb(j)]][app.Status.NumAlbum[false]]]) < end {
 			end = len(app.Songs[app.Albums[app.Artists[j-app.numAlb(j)]][app.Status.NumAlbum[false]]])
 		}
 
 		for _, song := range app.Songs[app.Albums[app.Artists[j-app.numAlb(j)]][app.Status.NumAlbum[false]]] {
-			js = new(music.BTrack)
+			js = new(jamsonic.Track)
 			json.Unmarshal([]byte(song), js)
 			if i >= beg && i < end {
 				printSingleItem(app.Screen, app.Width/3+2, k, dfStyle, app.makeSongLine(js), 0, false, app.Width)
@@ -235,7 +235,7 @@ func (app *App) printSongs(beg, end int, what []string) {
 			i++
 		}
 		for l := app.numAlb(j); l > 1; l-- {
-			app.Status.Queue = append(app.Status.Queue, []*music.BTrack{})
+			app.Status.Queue = append(app.Status.Queue, []*jamsonic.Track{})
 		}
 		app.Status.Queue = append(app.Status.Queue, que)
 	}

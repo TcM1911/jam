@@ -26,10 +26,9 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/budkin/gmusic"
-	"github.com/howeyc/gopass"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
-	"github.com/TcM1911/jamsonic/music"
 	"github.com/TcM1911/jamsonic/storage"
 )
 
@@ -44,7 +43,8 @@ func loginFromDatabase(db *bolt.DB) (*gmusic.GMusic, error) {
 	}, nil
 }
 
-func CheckCreds(db *bolt.DB, lastFM *bool) (*Client, *lastfm.Client, string, error) {
+func CheckCreds(d *storage.BoltDB, lastFM *bool) (*Client, *lastfm.Client, string, error) {
+	db := d.Bolt
 	gm, err := loginFromDatabase(db)
 	client := &Client{GMusic: gm}
 	if err != nil {
@@ -57,7 +57,7 @@ func CheckCreds(db *bolt.DB, lastFM *bool) (*Client, *lastfm.Client, string, err
 			return nil, nil, "", err
 		}
 		fmt.Println("Syncing database, may take a few seconds (will take longer if you have a lot of playlists)")
-		err = music.RefreshLibrary(db, client)
+		err = jamsonic.RefreshLibrary(d, client)
 	}
 	if err != nil {
 		return nil, nil, "", err
@@ -95,27 +95,10 @@ func CheckCreds(db *bolt.DB, lastFM *bool) (*Client, *lastfm.Client, string, err
 }
 
 func authenticate() (*gmusic.GMusic, error) {
-	email := askForEmail()
-	password, err := askForPassword()
+	email := jamsonic.AskForUsername()
+	password, err := jamsonic.AskForPassword()
 	if err != nil {
 		return nil, err
 	}
 	return gmusic.Login(email, string(password))
-}
-
-func askForEmail() string {
-	var email string
-	fmt.Print("Email: ")
-	fmt.Scanln(&email)
-	return email
-}
-
-func askForPassword() ([]byte, error) {
-	var password []byte
-	fmt.Print("Password: ")
-	password, err := gopass.GetPasswdMasked()
-	if err != nil {
-		return nil, err
-	}
-	return password, nil
 }

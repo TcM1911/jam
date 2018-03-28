@@ -57,8 +57,13 @@ func fullDbPath() string {
 	return filepath.Join(path, "jamsonicdb")
 }
 
-func Open() (*bolt.DB, error) {
-	return bolt.Open(fullDbPath(), 0600, nil)
+type BoltDB struct {
+	Bolt *bolt.DB
+}
+
+func Open() (*BoltDB, error) {
+	db, err := bolt.Open(fullDbPath(), 0600, nil)
+	return &BoltDB{Bolt: db}, err
 }
 
 func ReadCredentials(db *bolt.DB) ([]byte, []byte, error) {

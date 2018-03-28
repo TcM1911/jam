@@ -19,10 +19,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package music
+package storage
 
 import (
 	"encoding/json"
+	"log"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -30,47 +32,9 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-type BTrack struct {
-	Artist         string
-	DiscNumber     uint8
-	TrackNumber    uint32
-	DurationMillis string
-	EstimatedSize  string
-	ID             string
-	PlayCount      uint32
-	Title          string
-	Year           uint32
-}
-
-func RefreshLibrary(db *bolt.DB, provider jamsonic.Provider) error {
-	//db, err := bolt.Open(fullDbPath(), 0600, nil)
-	//checkErr(err)
-	//defer db.Close()
-	var err error
-	tracks, err := provider.ListTracks()
-	if err != nil {
-		return err
-	}
-	playlists, err := provider.ListPlaylists()
-	if err != nil {
-		return err
-	}
-	entries, err := provider.ListPlaylistEntries()
-	if err != nil {
-		return err
-	}
-	err = addTracks(db, tracks)
-	if err != nil {
-		return err
-	}
-	err = addPlaylists(db, provider, playlists, entries)
-	if err != nil {
-		return err
-	}
-	return err
-}
-
-func addPlaylists(db *bolt.DB, provider jamsonic.Provider, playlists []*jamsonic.Playlist, entries []*jamsonic.PlaylistEntry) error {
+// AddPlaylists stores the playlists in the database.
+func (d *BoltDB) AddPlaylists(provider jamsonic.Provider, playlists []*jamsonic.Playlist, entries []*jamsonic.PlaylistEntry) error {
+	db := d.Bolt
 	var pl *bolt.Bucket
 	var track *jamsonic.Track
 	var plName string
@@ -103,8 +67,17 @@ func addPlaylists(db *bolt.DB, provider jamsonic.Provider, playlists []*jamsonic
 				return err
 			}
 
-			bt := BTrack{track.Artist, track.DiscNumber, track.TrackNumber, track.DurationMillis,
-				track.EstimatedSize, entry.TrackId, track.PlayCount, track.Title, track.Year}
+			bt := jamsonic.Track{
+				Artist:         track.Artist,
+				DiscNumber:     track.DiscNumber,
+				TrackNumber:    track.TrackNumber,
+				DurationMillis: track.DurationMillis,
+				EstimatedSize:  track.EstimatedSize,
+				ID:             entry.TrackId,
+				PlayCount:      track.PlayCount,
+				Title:          track.Title,
+				Year:           track.Year,
+			}
 			buf, err = json.Marshal(bt)
 			if err != nil {
 				return err
@@ -122,7 +95,92 @@ func addPlaylists(db *bolt.DB, provider jamsonic.Provider, playlists []*jamsonic
 	})
 	return err
 }
-func addTracks(db *bolt.DB, tracks []*jamsonic.Track) error {
+
+// GetPlaylists returns the playlists. This code was moved from
+// the UI package.
+// This code is depricated.
+func GetPlaylists(d *BoltDB) sort.StringSlice {
+	playlists := sort.StringSlice{}
+	d.Bolt.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Playlists"))
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			playlists = append(playlists, string(k))
+		}
+		return nil
+	})
+	return playlists
+}
+
+// GetArtistsAndAlbums returns the artists and albums. This code was moved from
+// the UI package.
+// This code is depricated.
+func GetArtistsAndAlbums(d *BoltDB) (sort.StringSlice, map[string]bool, map[string][]string) {
+	artists := sort.StringSlice{}
+	artistsMap := make(map[string]bool)
+	albums := make(map[string][]string)
+	d.Bolt.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b := tx.Bucket([]byte("Library"))
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			if !artistsMap[string(k)] {
+				artistsMap[string(k)] = false
+			}
+			if v == nil {
+				if err := b.Bucket(k).ForEach(func(kk []byte, vv []byte) error {
+					albums[string(k)] = append(albums[string(k)], string(kk))
+
+					return nil
+				}); err != nil {
+					log.Fatalf("Can't populate artists: %s", err)
+				}
+			}
+		}
+		for k := range artistsMap {
+			artists = append(artists, k)
+		}
+		artists.Sort()
+		// log.Printf("Artists: %s", app.Artists)
+		return nil
+	})
+	return artists, artistsMap, albums
+}
+
+// GetTracks returns the tracks. This code was moved from
+// the UI package.
+// This code is depricated.
+func GetTracks(d *BoltDB, what []string, view int, curPos, scrOffset map[bool]int, numAlb func(k int) int) map[string][]string {
+	songs := make(map[string][]string)
+	if err := d.Bolt.View(func(tx *bolt.Tx) error {
+		var b *bolt.Bucket
+		var c *bolt.Cursor
+		if view == 0 {
+			i := curPos[false] - 1 + scrOffset[false]
+			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-numAlb(i)]))
+		} else if view == 1 {
+			b = tx.Bucket([]byte("Playlists"))
+		}
+		c = b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			if v == nil {
+				cc := b.Bucket(k).Cursor()
+				for kk, vv := cc.First(); kk != nil; kk, vv = cc.Next() {
+					songs[string(k)] = append(songs[string(k)], string(vv))
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		log.Fatalf("Can't populate songs: %s", err)
+	}
+	return songs
+}
+
+// AddTracks stores the tracks to the database.
+func (d *BoltDB) AddTracks(tracks []*jamsonic.Track) error {
+	db := d.Bolt
 	var artist *bolt.Bucket
 	var mixedAlbum bool
 	var buf []byte
@@ -156,8 +214,17 @@ func addTracks(db *bolt.DB, tracks []*jamsonic.Track) error {
 					return err
 				}
 				for i < temp {
-					bt := BTrack{tracks[i].Artist, tracks[i].DiscNumber, tracks[i].TrackNumber, tracks[i].DurationMillis,
-						tracks[i].EstimatedSize, tracks[i].ID, tracks[i].PlayCount, tracks[i].Title, tracks[i].Year}
+					bt := jamsonic.Track{
+						Artist:         tracks[i].Artist,
+						DiscNumber:     tracks[i].DiscNumber,
+						TrackNumber:    tracks[i].TrackNumber,
+						DurationMillis: tracks[i].DurationMillis,
+						EstimatedSize:  tracks[i].EstimatedSize,
+						ID:             tracks[i].ID,
+						PlayCount:      tracks[i].PlayCount,
+						Title:          tracks[i].Title,
+						Year:           tracks[i].Year,
+					}
 					buf, err = json.Marshal(bt)
 					if err != nil {
 						return err
@@ -198,8 +265,17 @@ func addTracks(db *bolt.DB, tracks []*jamsonic.Track) error {
 				return err
 			}
 
-			bt := BTrack{tracks[i].Artist, tracks[i].DiscNumber, tracks[i].TrackNumber, tracks[i].DurationMillis,
-				tracks[i].EstimatedSize, tracks[i].ID, tracks[i].PlayCount, tracks[i].Title, tracks[i].Year}
+			bt := jamsonic.Track{
+				Artist:         tracks[i].Artist,
+				DiscNumber:     tracks[i].DiscNumber,
+				TrackNumber:    tracks[i].TrackNumber,
+				DurationMillis: tracks[i].DurationMillis,
+				EstimatedSize:  tracks[i].EstimatedSize,
+				ID:             tracks[i].ID,
+				PlayCount:      tracks[i].PlayCount,
+				Title:          tracks[i].Title,
+				Year:           tracks[i].Year,
+			}
 			buf, err = json.Marshal(bt)
 			if err != nil {
 				return err
@@ -219,7 +295,5 @@ func addTracks(db *bolt.DB, tracks []*jamsonic.Track) error {
 
 		return nil
 	})
-
 	return err
-
 }

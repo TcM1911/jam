@@ -22,6 +22,7 @@
 package ui
 
 import (
+	"github.com/TcM1911/jamsonic/storage"
 	// "encoding/json"
 	// "fmt"
 	"log"
@@ -32,13 +33,11 @@ import (
 
 	// "time"
 
-	"github.com/boltdb/bolt"
 	"github.com/gdamore/tcell"
 	// runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
-	"github.com/TcM1911/jamsonic/music"
 )
 
 const (
@@ -68,8 +67,8 @@ type Status struct {
 	InSearch  bool
 	LastFM    bool
 	NumTrack  int
-	Queue     [][]*music.BTrack // playlist, updated on each movement of cursor in artists view
-	Query     []rune            // search query
+	Queue     [][]*jamsonic.Track // playlist, updated on each movement of cursor in artists view
+	Query     []rune              // search query
 
 	State       chan int // player's state: play, pause, stop, etc
 	RepeatTrack bool
@@ -86,7 +85,7 @@ type App struct {
 
 	// Better:
 	// Database *Database
-	DB         *bolt.DB
+	DB         *storage.BoltDB
 	ArtistsMap map[string]bool
 	Artists    sort.StringSlice
 	Playlists  sort.StringSlice
@@ -98,7 +97,7 @@ type App struct {
 }
 
 // New creates a new UI
-func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *bolt.DB) (*App, error) {
+func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *storage.BoltDB) (*App, error) {
 	var lastfmStatus bool
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -143,7 +142,7 @@ func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db 
 			InTracks: false,
 			InSearch: false,
 			NumTrack: 0,
-			Queue:    make([][]*music.BTrack, 0),
+			Queue:    make([][]*jamsonic.Track, 0),
 			State:    make(chan int),
 			LastFM:   lastfmStatus,
 		},
@@ -160,74 +159,15 @@ func (app *App) Run() {
 }
 
 func (app *App) populatePlaylists() {
-	app.Playlists = sort.StringSlice{}
-	app.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Playlists"))
-		c := b.Cursor()
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			app.Playlists = append(app.Playlists, string(k))
-		}
-
-		return nil
-	})
+	app.Playlists = storage.GetPlaylists(app.DB)
 }
 
 func (app *App) populateArtists() {
-	app.Artists = sort.StringSlice{}
-	app.DB.View(func(tx *bolt.Tx) error {
-		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte("Library"))
-		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if !app.ArtistsMap[string(k)] {
-				app.ArtistsMap[string(k)] = false
-			}
-			if v == nil {
-				if err := b.Bucket(k).ForEach(func(kk []byte, vv []byte) error {
-					app.Albums[string(k)] = append(app.Albums[string(k)], string(kk))
-
-					return nil
-				}); err != nil {
-					log.Fatalf("Can't populate artists: %s", err)
-				}
-			}
-
-		}
-		for k := range app.ArtistsMap {
-			app.Artists = append(app.Artists, k)
-		}
-		app.Artists.Sort()
-		// log.Printf("Artists: %s", app.Artists)
-		return nil
-	})
+	app.Artists, app.ArtistsMap, app.Albums = storage.GetArtistsAndAlbums(app.DB)
 }
 
 func (app *App) populateSongs(what []string) {
-	app.Songs = map[string][]string{}
-	if err := app.DB.View(func(tx *bolt.Tx) error {
-		var b *bolt.Bucket
-		var c *bolt.Cursor
-		if app.Status.CurView == 0 {
-			i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
-			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-app.numAlb(i)]))
-		} else if app.Status.CurView == 1 {
-			b = tx.Bucket([]byte("Playlists"))
-		}
-		c = b.Cursor()
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if v == nil {
-				cc := b.Bucket(k).Cursor()
-				for kk, vv := cc.First(); kk != nil; kk, vv = cc.Next() {
-					app.Songs[string(k)] = append(app.Songs[string(k)], string(vv))
-				}
-			}
-		}
-		return nil
-	}); err != nil {
-		log.Fatalf("Can't populate songs: %s", err)
-	}
-
+	app.Songs = storage.GetTracks(app.DB, what, app.Status.CurView, app.Status.CurPos, app.Status.ScrOffset, app.numAlb)
 }
 
 func (app *App) search(what []string) {
@@ -366,7 +306,7 @@ func (app *App) mainLoop() {
 			case ' ':
 				app.toggleAlbums()
 			case 'u':
-				err := music.RefreshLibrary(app.DB, app.Provider)
+				err := jamsonic.RefreshLibrary(app.DB, app.Provider)
 				if err != nil {
 					log.Fatalf("Can't refresh library: %s", err)
 				}

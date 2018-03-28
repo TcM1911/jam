@@ -27,9 +27,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/korandiz/mpa"
-
-	"github.com/TcM1911/jamsonic/music"
 )
 
 // OutputStream define an output stream
@@ -74,7 +73,7 @@ func (app *App) player() {
 
 			album := app.Status.NumAlbum[true]
 			ntrack := app.Status.NumTrack
-			queueTemp := make([][]*music.BTrack, len(app.Status.Queue))
+			queueTemp := make([][]*jamsonic.Track, len(app.Status.Queue))
 			copy(queueTemp, app.Status.Queue)
 
 			track := queueTemp[album][ntrack]
@@ -85,7 +84,7 @@ func (app *App) player() {
 			}
 
 			defDur = time.Duration(0)
-			defTrack = &music.BTrack{}
+			defTrack = &jamsonic.Track{}
 			app.printBar(defDur, defTrack)
 			temp, _ := strconv.Atoi(track.DurationMillis)
 			songDur = time.Duration(temp) * time.Millisecond
@@ -132,7 +131,7 @@ func (app *App) player() {
 							trackScrobbled = false
 							playing = false
 							defDur = time.Duration(0)
-							defTrack = &music.BTrack{}
+							defTrack = &jamsonic.Track{}
 							app.printBar(defDur, defTrack)
 						}()
 						playing = true
@@ -194,7 +193,7 @@ func (app *App) player() {
 							r = &mpa.Reader{Decoder: &mpa.Decoder{Input: song}}
 							pauseDur = time.Duration(0)
 							defDur = time.Duration(0)
-							defTrack = &music.BTrack{}
+							defTrack = &jamsonic.Track{}
 							app.printBar(defDur, defTrack)
 
 							temp, _ := strconv.Atoi(track.DurationMillis)
