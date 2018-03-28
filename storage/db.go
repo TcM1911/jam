@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,6 +30,20 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+const (
+	gpmAuthBucket = "#AuthDetails"
+	gpmAuthKey    = "Auth"
+	gpmDeviceKey  = "DeviceID"
+	lastFMBucket  = "#LastFM"
+	lastFMRecord  = "sk"
+)
+
+var (
+	ErrNoGPMCredentials = errors.New("No #AuthDetails bucket")
+	ErrNoLastFMBucket   = errors.New("No #LastFM bucket")
+	ErrNoLastFMRecord   = errors.New("No LastFM record in the database")
+)
+
 func fullDbPath() string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(os.Getenv("APPDATA"), "jamsonicdb")
@@ -50,12 +65,12 @@ func ReadCredentials(db *bolt.DB) ([]byte, []byte, error) {
 	var auth []byte
 	var deviceID []byte
 	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("#AuthDetails"))
+		b := tx.Bucket([]byte(gpmAuthBucket))
 		if b == nil {
-			return errors.New("No #AuthDetails bucket")
+			return ErrNoGPMCredentials
 		}
-		auth = b.Get([]byte("Auth"))
-		deviceID = b.Get([]byte("DeviceID"))
+		auth = b.Get([]byte(gpmAuthKey))
+		deviceID = b.Get([]byte(gpmDeviceKey))
 		return nil
 	})
 	if err != nil {
@@ -66,12 +81,12 @@ func ReadCredentials(db *bolt.DB) ([]byte, []byte, error) {
 
 func WriteCredentials(db *bolt.DB, auth string, deviceID string) error {
 	return db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("#AuthDetails"))
+		b, err := tx.CreateBucketIfNotExists([]byte(gpmAuthBucket))
 		if err != nil {
 			return err
 		}
-		err = b.Put([]byte("Auth"), []byte(auth))
-		err = b.Put([]byte("DeviceID"), []byte(deviceID))
+		err = b.Put([]byte(gpmAuthKey), []byte(auth))
+		err = b.Put([]byte(gpmDeviceKey), []byte(deviceID))
 		return err
 	})
 }
@@ -81,13 +96,13 @@ func ReadLastFM(db *bolt.DB) (string, error) {
 	var err error
 
 	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("#LastFM"))
+		b := tx.Bucket([]byte(lastFMBucket))
 		if b == nil {
-			return errors.New("No #LastFM bucket")
+			return ErrNoLastFMBucket
 		}
-		lastfm = b.Get([]byte("sk"))
+		lastfm = b.Get([]byte(lastFMRecord))
 		if string(lastfm) == "" {
-			err = errors.New("No LastFM record in the database")
+			err = ErrNoLastFMRecord
 		}
 
 		return err
@@ -99,12 +114,12 @@ func ReadLastFM(db *bolt.DB) (string, error) {
 func WriteLastFM(lastfm []byte, db *bolt.DB) error {
 
 	return db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("#LastFM"))
+		b, err := tx.CreateBucketIfNotExists([]byte(lastFMBucket))
 		if err != nil {
 			return err
 		}
 
-		err = b.Put([]byte("sk"), lastfm)
+		err = b.Put([]byte(lastFMRecord), lastfm)
 		return err
 	})
 }
