@@ -9,3 +9,4 @@
 - [ ] Add help key to TUI.
 - [ ] Break up to server/client model.
 - [ ] Add CLI client.
+- [ ] Switch to PortAudio
