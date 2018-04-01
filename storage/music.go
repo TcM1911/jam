@@ -23,6 +23,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"sort"
 	"strconv"
@@ -30,6 +31,15 @@ import (
 
 	"github.com/TcM1911/jamsonic"
 	"github.com/boltdb/bolt"
+)
+
+var (
+	musicLibrary = []byte("MusicLib")
+)
+
+var (
+	ErrNoLibraryFound  = errors.New("no library found")
+	ErrLibraryNotFound = errors.New("library not found")
 )
 
 // AddPlaylists stores the playlists in the database.
@@ -145,6 +155,63 @@ func GetArtistsAndAlbums(d *BoltDB) (sort.StringSlice, map[string]bool, map[stri
 		return nil
 	})
 	return artists, artistsMap, albums
+}
+
+func (d *BoltDB) Artists() ([]*jamsonic.Artist, error) {
+	artists := make([]*jamsonic.Artist, 0)
+	err := d.Bolt.View(func(tx *bolt.Tx) error {
+		mainBucket := tx.Bucket(musicLibrary)
+		if mainBucket == nil {
+			return ErrNoLibraryFound
+		}
+		b := mainBucket.Bucket(d.LibName)
+		if b == nil {
+			return ErrLibraryNotFound
+		}
+		b.ForEach(func(k []byte, v []byte) error {
+			var artist jamsonic.Artist
+			err := json.Unmarshal(v, &artist)
+			if err != nil {
+				return err
+			}
+			artists = append(artists, &artist)
+			return nil
+		})
+		return nil
+	})
+	return artists, err
+}
+
+func (d *BoltDB) SaveArtists(artists []*jamsonic.Artist) error {
+	err := d.Bolt.Update(func(tx *bolt.Tx) error {
+		mainBucket, err := tx.CreateBucketIfNotExists(musicLibrary)
+		if err != nil {
+			return err
+		}
+		// Remove old cached data.
+		if mainBucket.Bucket(d.LibName) != nil {
+			err = mainBucket.DeleteBucket(d.LibName)
+			if err != nil {
+				return err
+			}
+		}
+		b, err := mainBucket.CreateBucket(d.LibName)
+		if err != nil {
+			return err
+		}
+		for _, artist := range artists {
+			buf, err := json.Marshal(&artist)
+			if err != nil {
+				return err
+			}
+			err = b.Put([]byte(artist.ID), buf)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
 }
 
 // GetTracks returns the tracks. This code was moved from

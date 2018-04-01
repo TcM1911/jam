@@ -23,25 +23,33 @@ package jamsonic
 
 func RefreshLibrary(db MusicStore, provider Provider) error {
 	var err error
-	tracks, err := provider.ListTracks()
-	if err != nil {
-		return err
-	}
-	playlists, err := provider.ListPlaylists()
-	if err != nil {
-		return err
-	}
-	entries, err := provider.ListPlaylistEntries()
-	if err != nil {
-		return err
-	}
-	err = db.AddTracks(tracks)
-	if err != nil {
-		return err
-	}
-	err = db.AddPlaylists(provider, playlists, entries)
-	if err != nil {
-		return err
+	if provider.GetProvider() == GooglePlayMusic {
+		tracks, err := provider.ListTracks()
+		if err != nil {
+			return err
+		}
+		playlists, err := provider.ListPlaylists()
+		if err != nil {
+			return err
+		}
+		entries, err := provider.ListPlaylistEntries()
+		if err != nil {
+			return err
+		}
+		err = db.AddTracks(tracks)
+		if err != nil {
+			return err
+		}
+		err = db.AddPlaylists(provider, playlists, entries)
+		if err != nil {
+			return err
+		}
+	} else {
+		albums, err := provider.FetchLibrary()
+		if err != nil {
+			return err
+		}
+		err = db.SaveArtists(albums)
 	}
 	return err
 }

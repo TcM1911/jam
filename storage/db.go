@@ -39,9 +39,14 @@ const (
 )
 
 var (
-	ErrNoGPMCredentials = errors.New("No #AuthDetails bucket")
-	ErrNoLastFMBucket   = errors.New("No #LastFM bucket")
-	ErrNoLastFMRecord   = errors.New("No LastFM record in the database")
+	credentialBucket = []byte("Credentials")
+)
+
+var (
+	ErrNoGPMCredentials    = errors.New("No #AuthDetails bucket")
+	ErrNoLastFMBucket      = errors.New("No #LastFM bucket")
+	ErrNoLastFMRecord      = errors.New("No LastFM record in the database")
+	ErrNoCredentialsStored = errors.New("No credentials stored")
 )
 
 func fullDbPath() string {
@@ -58,7 +63,34 @@ func fullDbPath() string {
 }
 
 type BoltDB struct {
-	Bolt *bolt.DB
+	Bolt    *bolt.DB
+	LibName []byte
+}
+
+func (d *BoltDB) SaveCredentials(key []byte, credStruct []byte) error {
+	err := d.Bolt.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(credentialBucket)
+		if err != nil {
+			return err
+		}
+		return b.Put(key, credStruct)
+	})
+	return err
+}
+
+func (d *BoltDB) GetCredentials(key []byte) ([]byte, error) {
+	var buf []byte
+	err := d.Bolt.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(credentialBucket)
+		if b == nil {
+			return ErrNoCredentialsStored
+		}
+		creds := b.Get(key)
+		buf = make([]byte, len(creds))
+		copy(buf, creds)
+		return nil
+	})
+	return buf, err
 }
 
 func Open() (*BoltDB, error) {

@@ -22,22 +22,16 @@
 package ui
 
 import (
-	"github.com/TcM1911/jamsonic/storage"
-	// "encoding/json"
-	// "fmt"
+	"encoding/json"
 	"log"
 	"math/rand"
 	"sort"
-	// "strconv"
 	"strings"
-
-	// "time"
-
-	"github.com/gdamore/tcell"
-	// runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
+	"github.com/TcM1911/jamsonic/storage"
+	"github.com/gdamore/tcell"
 )
 
 const (
@@ -47,15 +41,6 @@ const (
 	next
 	prev
 )
-
-// type Database struct {
-// 	DB         *bolt.DB
-// 	ArtistsMap map[string]bool
-// 	Artists    sort.StringSlice
-// 	Songs      map[string][]string
-// 	Albums     map[string][]string
-// 	LastAlbum  string
-// }
 
 type Status struct {
 	ScrOffset map[bool]int
@@ -83,9 +68,8 @@ type App struct {
 	Provider jamsonic.Provider
 	LastFM   *lastfm.Client
 
-	// Better:
-	// Database *Database
 	DB         *storage.BoltDB
+	Library    map[string]*jamsonic.Artist
 	ArtistsMap map[string]bool
 	Artists    sort.StringSlice
 	Playlists  sort.StringSlice
@@ -120,6 +104,7 @@ func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db 
 		Provider:   provider,
 		LastFM:     lmclient,
 		DB:         db,
+		Library:    map[string]*jamsonic.Artist{},
 		ArtistsMap: map[string]bool{},
 		Artists:    sort.StringSlice{},
 		Songs:      map[string][]string{},
@@ -159,15 +144,73 @@ func (app *App) Run() {
 }
 
 func (app *App) populatePlaylists() {
-	app.Playlists = storage.GetPlaylists(app.DB)
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Playlists = storage.GetPlaylists(app.DB)
+	}
 }
 
 func (app *App) populateArtists() {
-	app.Artists, app.ArtistsMap, app.Albums = storage.GetArtistsAndAlbums(app.DB)
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Artists, app.ArtistsMap, app.Albums = storage.GetArtistsAndAlbums(app.DB)
+		return
+	}
+	as, err := app.DB.Artists()
+	if err != nil {
+		app.Screen.Fini()
+		log.Fatalln("Error when populating artists:", err.Error())
+	}
+	artists := sort.StringSlice{}
+	artistsMap := make(map[string]bool)
+	albums := make(map[string][]string)
+	for _, artist := range as {
+		tmpAlbums := make([]string, len(artist.Albums))
+		for i, v := range artist.Albums {
+			tmpAlbums[i] = v.Name
+		}
+		albums[artist.Name] = tmpAlbums
+		artists = append(artists, artist.Name)
+		artistsMap[artist.Name] = false
+		app.Library[artist.Name] = artist
+	}
+	artists.Sort()
+	app.Artists = artists
+	app.ArtistsMap = artistsMap
+	app.Albums = albums
 }
 
 func (app *App) populateSongs(what []string) {
-	app.Songs = storage.GetTracks(app.DB, what, app.Status.CurView, app.Status.CurPos, app.Status.ScrOffset, app.numAlb)
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Songs = storage.GetTracks(app.DB, what, app.Status.CurView, app.Status.CurPos, app.Status.ScrOffset, app.numAlb)
+		return
+	}
+	app.Songs = make(map[string][]string)
+	// Artist index
+	i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+	// Album index
+	j := app.numAlb(i) - 1
+	tmp := what[i]
+	for tmp == "" {
+		i--
+		tmp = what[i]
+	}
+	artist := app.Library[what[i]]
+	if j < 0 {
+		for _, album := range artist.Albums {
+			trackList := make([]string, 0)
+			for _, track := range album.Tracks {
+				buf, _ := json.Marshal(track)
+				trackList = append(trackList, string(buf))
+			}
+			app.Songs[album.Name] = trackList
+		}
+	} else {
+		trackList := make([]string, 0)
+		for _, track := range artist.Albums[j].Tracks {
+			buf, _ := json.Marshal(track)
+			trackList = append(trackList, string(buf))
+		}
+		app.Songs[artist.Albums[j].Name] = trackList
+	}
 }
 
 func (app *App) search(what []string) {

@@ -27,6 +27,13 @@ import (
 	"github.com/howeyc/gopass"
 )
 
+func AskForServer() string {
+	var host string
+	fmt.Print("Url to Subsonic host: ")
+	fmt.Scanln(&host)
+	return host
+}
+
 func AskForUsername() string {
 	var email string
 	fmt.Print("Email/Username: ")

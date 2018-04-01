@@ -27,12 +27,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/boltdb/bolt"
-
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
+	"github.com/TcM1911/jamsonic/subsonic"
 	"github.com/TcM1911/jamsonic/ui"
 	"github.com/TcM1911/jamsonic/version"
 )
@@ -46,6 +45,7 @@ var (
 	vers   bool
 	debug  bool
 	lastFM bool
+	useGPM bool
 )
 
 func init() {
@@ -53,6 +53,7 @@ func init() {
 	flag.BoolVar(&vers, "version", false, "print version and exit")
 	flag.BoolVar(&debug, "debug", false, "debug")
 	flag.BoolVar(&lastFM, "lastfm", false, "Enable LastFM scrobbler")
+	flag.BoolVar(&useGPM, "googlemusic", false, "Use Google Play Music")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.Version))
@@ -69,22 +70,28 @@ func init() {
 
 func main() {
 	db, err := storage.Open()
+	defer db.Bolt.Close()
 	if err != nil {
 		log.Fatalf("Can't open database: %s", err)
 	}
-	provider, lmclient, lastfm, err := gpm.CheckCreds(db, &lastFM)
-	if err != nil {
-		log.Fatalf("Can't connect to Google Music: %s", err)
+	if useGPM {
+		provider, lmclient, lastfm, err := gpm.CheckCreds(db, &lastFM)
+		if err != nil {
+			log.Fatalf("Can't connect to Google Music: %s", err)
+		}
+		if err = doUI(provider, lmclient, lastfm, db); err != nil {
+			log.Fatalf("Can't start UI: %s", err)
+		}
+	} else {
+		client, err := subsonic.New(db)
+		if err != nil {
+			log.Fatalln("Can't connect to SubSonic server:", err.Error())
+		}
+		doUI(client, &lastfm.Client{}, "None", db)
 	}
-	defer db.Close()
-
-	if err = doUI(provider, lmclient, lastfm, db); err != nil {
-		log.Fatalf("Can't start UI: %s", err)
-	}
-
 }
 
-func doUI(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *bolt.DB) error {
+func doUI(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *storage.BoltDB) error {
 	app, err := ui.New(provider, lmclient, lastfm, db)
 	if err != nil {
 		return err
