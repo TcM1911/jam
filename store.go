@@ -22,6 +22,14 @@ SOFTWARE.
 
 package jamsonic
 
+import "errors"
+
+var (
+	// ErrNoCredentialsStored is returned if the backend does not have any
+	// credentials stored.
+	ErrNoCredentialsStored = errors.New("No credentials stored")
+)
+
 // MusicStore is the interface for databases which stores library caches.
 type MusicStore interface {
 	// AddTracks stores the tracks to the database. This methods is
@@ -38,8 +46,8 @@ type MusicStore interface {
 
 // AuthStore is the interface for databases which handles credentials.
 type AuthStore interface {
-	// ReadCredentials gets the credentials from the database.
-	ReadCredentials() ([]byte, []byte, error)
-	// WriteCredentials saves the credentials to the database.
-	WriteCredentials(auth string, deviceID string) error
+	// GetCredentials gets the credentials from the database.
+	GetCredentials(key []byte) ([]byte, error)
+	// SaveCredentials saves the credentials to the database.
+	SaveCredentials(key []byte, credStruct []byte) error
 }

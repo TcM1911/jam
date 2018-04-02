@@ -31,7 +31,6 @@ import (
 	"net/http"
 
 	"github.com/TcM1911/jamsonic"
-	"github.com/TcM1911/jamsonic/storage"
 	"github.com/satori/go.uuid"
 )
 
@@ -61,9 +60,9 @@ type credentials struct {
 // in the storage, the client will use the stored credentials. Otherwise, it will
 // request the user to enter the server url, username, and password on the command
 // line.
-func New(db *storage.BoltDB) (*Client, error) {
+func New(db jamsonic.AuthStore) (*Client, error) {
 	credBuf, err := db.GetCredentials(credentialKey)
-	if err == storage.ErrNoCredentialsStored || credBuf == nil {
+	if err == jamsonic.ErrNoCredentialsStored || credBuf == nil {
 		host := jamsonic.AskForServer()
 		username := jamsonic.AskForUsername()
 		password, err := jamsonic.AskForPassword()
@@ -83,7 +82,6 @@ func New(db *storage.BoltDB) (*Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		db.LibName = []byte(host)
 		return client, nil
 	}
 	if err != nil {
@@ -95,7 +93,6 @@ func New(db *storage.BoltDB) (*Client, error) {
 		return nil, err
 	}
 	client := Client{credentials: creds}
-	db.LibName = []byte(client.Host)
 	return &client, nil
 }
 
@@ -144,7 +141,7 @@ func sendRequest(url string) (*apiResponse, error) {
 
 func (c *Client) makeRequestURL(method string) string {
 	return fmt.Sprintf("%s/rest/%s.view?u=%s&t=%s&s=%s&v=%s&c=%s&f=json",
-		c.Host,
+		c.credentials.Host,
 		method,
 		c.Username,
 		c.Token,
@@ -152,4 +149,9 @@ func (c *Client) makeRequestURL(method string) string {
 		apiVersion,
 		clientName,
 	)
+}
+
+// Host returns the server host.
+func (c *Client) Host() string {
+	return c.credentials.Host
 }

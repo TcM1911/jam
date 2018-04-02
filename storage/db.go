@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/boltdb/bolt"
 )
 
@@ -43,10 +44,9 @@ var (
 )
 
 var (
-	ErrNoGPMCredentials    = errors.New("No #AuthDetails bucket")
-	ErrNoLastFMBucket      = errors.New("No #LastFM bucket")
-	ErrNoLastFMRecord      = errors.New("No LastFM record in the database")
-	ErrNoCredentialsStored = errors.New("No credentials stored")
+	ErrNoGPMCredentials = errors.New("No #AuthDetails bucket")
+	ErrNoLastFMBucket   = errors.New("No #LastFM bucket")
+	ErrNoLastFMRecord   = errors.New("No LastFM record in the database")
 )
 
 func fullDbPath() string {
@@ -83,7 +83,7 @@ func (d *BoltDB) GetCredentials(key []byte) ([]byte, error) {
 	err := d.Bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(credentialBucket)
 		if b == nil {
-			return ErrNoCredentialsStored
+			return jamsonic.ErrNoCredentialsStored
 		}
 		creds := b.Get(key)
 		buf = make([]byte, len(creds))

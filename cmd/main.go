@@ -87,6 +87,7 @@ func main() {
 		if err != nil {
 			log.Fatalln("Can't connect to SubSonic server:", err.Error())
 		}
+		db.LibName = []byte(client.Host())
 		fmt.Println("Syncing database, may take a few seconds (will take longer if you have a lot of playlists)")
 		err = jamsonic.RefreshLibrary(db, client)
 		if err != nil {
