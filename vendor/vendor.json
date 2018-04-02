@@ -34,6 +34,12 @@
 			"revisionTime": "2016-12-05T23:37:37Z"
 		},
 		{
+			"checksumSHA1": "LTv/sL33HSC/6TWNuQlTAy1uXtk=",
+			"path": "github.com/gordonklaus/portaudio",
+			"revision": "e66c30a9c4ca11f93538cf8c004831bfb76f3838",
+			"revisionTime": "2017-08-06T14:41:49Z"
+		},
+		{
 			"checksumSHA1": "K6exl2ouL7d8cR2i378EzZOdRVI=",
 			"path": "github.com/howeyc/gopass",
 			"revision": "bf9dde6d0d2c004a008c27aaee91170c786f6db8",
