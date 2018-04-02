@@ -83,7 +83,7 @@ func main() {
 			log.Fatalf("Can't start UI: %s", err)
 		}
 	} else {
-		client, err := subsonic.New(db)
+		client, err := subsonic.New(db, jamsonic.DefaultCredentialRequest)
 		if err != nil {
 			log.Fatalln("Can't connect to SubSonic server:", err.Error())
 		}

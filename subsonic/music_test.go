@@ -204,3 +204,12 @@ func writeServerReply(w http.ResponseWriter, data *apiData) {
 	buf, _ := json.Marshal(&data)
 	w.Write(buf)
 }
+
+func TestPanics(t *testing.T) {
+	assert := assert.New(t)
+	c := &Client{}
+	assert.PanicsWithValue("should not be called.", func() { _, _ = c.ListTracks() }, "Method should panic.")
+	assert.PanicsWithValue("not implemented", func() { _, _ = c.ListPlaylists() }, "Method should panic.")
+	assert.PanicsWithValue("should not be called.", func() { _, _ = c.ListPlaylistEntries() }, "Method should panic.")
+	assert.PanicsWithValue("should not be called.", func() { _, _ = c.GetTrackInfo("") }, "Method should panic.")
+}

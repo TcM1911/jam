@@ -23,9 +23,46 @@ package jamsonic
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/howeyc/gopass"
 )
+
+// CredentialRequester is an interface for getting credentials from the user.
+type CredentialRequester interface {
+	// GetServer should return the server url.
+	GetServer() string
+	// GetUsername should return the username gotten from the user.
+	GetUsername() string
+	// GetPassword should return the password gotten from the user.
+	GetPassword() string
+}
+
+type CredentialRequest struct{}
+
+// DefaultCredentialRequest is a default credential requester. It
+// will read the info from stdin.
+var DefaultCredentialRequest = &CredentialRequest{}
+
+// GetServer asks the user to enter the server url via stdin.
+func (c *CredentialRequest) GetServer() string {
+	return AskForServer()
+}
+
+// GetUsername asks the user to enter the username via stdin.
+func (c *CredentialRequest) GetUsername() string {
+	return AskForUsername()
+}
+
+// GetPassword asks the user to enter the password via stdin.
+func (c *CredentialRequest) GetPassword() string {
+	pass, err := AskForPassword()
+	if err != nil {
+		log.Println("Error when asking for the password:", err.Error())
+		return ""
+	}
+	return string(pass)
+}
 
 func AskForServer() string {
 	var host string

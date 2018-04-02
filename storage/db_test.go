@@ -27,6 +27,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/boltdb/bolt"
 	"github.com/stretchr/testify/assert"
 )
@@ -61,7 +62,7 @@ func TestCredentials(t *testing.T) {
 	// Tests
 	t.Run("handle_no_creds_saved", func(t *testing.T) {
 		_, err := db.GetCredentials(credkey)
-		assert.Equal(ErrNoCredentialsStored, err, "Wrong error returned")
+		assert.Equal(jamsonic.ErrNoCredentialsStored, err, "Wrong error returned")
 	})
 	t.Run("save", func(t *testing.T) {
 		err := db.SaveCredentials(credkey, expectedPassword)

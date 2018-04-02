@@ -41,6 +41,8 @@ const (
 
 var (
 	credentialKey = []byte("subsonicCredsKey")
+	// ErrAuthenticationFailed is returned if authentication with the server failed.
+	ErrAuthenticationFailed = errors.New("authentication failed")
 )
 
 // Client is the Subsonic client which talks to the Subsonic server.
@@ -60,16 +62,13 @@ type credentials struct {
 // in the storage, the client will use the stored credentials. Otherwise, it will
 // request the user to enter the server url, username, and password on the command
 // line.
-func New(db jamsonic.AuthStore) (*Client, error) {
+func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester) (*Client, error) {
 	credBuf, err := db.GetCredentials(credentialKey)
-	if err == jamsonic.ErrNoCredentialsStored || credBuf == nil {
-		host := jamsonic.AskForServer()
-		username := jamsonic.AskForUsername()
-		password, err := jamsonic.AskForPassword()
-		if err != nil {
-			return nil, err
-		}
-		client, err := login(username, string(password), host)
+	if err == jamsonic.ErrNoCredentialsStored {
+		host := credRequester.GetServer()
+		username := credRequester.GetUsername()
+		password := credRequester.GetPassword()
+		client, err := login(username, password, host)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +119,7 @@ func login(username, password, host string) (*Client, error) {
 	var data apiData
 	json.NewDecoder(res.Body).Decode(&data)
 	if data.Response.Status != "ok" {
-		return nil, errors.New("authentication failed")
+		return nil, ErrAuthenticationFailed
 	}
 	return c, nil
 }
