@@ -84,8 +84,6 @@ func New(db *storage.BoltDB) (*Client, error) {
 			return nil, err
 		}
 		db.LibName = []byte(host)
-		fmt.Println("Syncing database, may take a few seconds (will take longer if you have a lot of playlists)")
-		err = jamsonic.RefreshLibrary(db, client)
 		return client, nil
 	}
 	if err != nil {
