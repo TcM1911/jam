@@ -1,4 +1,4 @@
-# jamsonic
+# Jamsonic
 
 Jamsonic is a console based music player for Subsonic/Madsonic/Libresonic/Airsonic.
 It's forked from [Jam](https://github.com/budkin/jam), which is a console based
