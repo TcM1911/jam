@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,9 +27,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/TcM1911/jamsonic"
 	"github.com/korandiz/mpa"
-
-	"github.com/budkin/jam/music"
 )
 
 // OutputStream define an output stream
@@ -73,25 +73,25 @@ func (app *App) player() {
 
 			album := app.Status.NumAlbum[true]
 			ntrack := app.Status.NumTrack
-			queueTemp := make([][]*music.BTrack, len(app.Status.Queue))
+			queueTemp := make([][]*jamsonic.Track, len(app.Status.Queue))
 			copy(queueTemp, app.Status.Queue)
 
 			track := queueTemp[album][ntrack]
 
-			song, err := app.GMusic.GetStream(track.ID)
+			song, err := app.Provider.GetStream(track.ID)
 			if err != nil {
 				log.Fatalf("Can't play stream: %s, %v", err, track)
 			}
 
 			defDur = time.Duration(0)
-			defTrack = &music.BTrack{}
+			defTrack = &jamsonic.Track{}
 			app.printBar(defDur, defTrack)
 			temp, _ := strconv.Atoi(track.DurationMillis)
 			songDur = time.Duration(temp) * time.Millisecond
 
 			//d = mpa.Decoder{Input: song.Body}
-			r = &mpa.Reader{Decoder: &mpa.Decoder{Input: song.Body}}
-			defer song.Body.Close()
+			r = &mpa.Reader{Decoder: &mpa.Decoder{Input: song}}
+			defer song.Close()
 			timer := time.Now()
 			if app.Status.LastFM && app.LastFM != nil {
 				go app.LastFM.NowPlaying(track.Title, track.Artist)
@@ -131,7 +131,7 @@ func (app *App) player() {
 							trackScrobbled = false
 							playing = false
 							defDur = time.Duration(0)
-							defTrack = &music.BTrack{}
+							defTrack = &jamsonic.Track{}
 							app.printBar(defDur, defTrack)
 						}()
 						playing = true
@@ -185,15 +185,15 @@ func (app *App) player() {
 							}
 
 							track = queueTemp[album][ntrack]
-							song, err = app.GMusic.GetStream(track.ID)
+							song, err = app.Provider.GetStream(track.ID)
 							if err != nil {
 								log.Fatalf("Can't get stream: %s", err)
 							}
 							//d = mpa.Decoder{Input: song.Body}
-							r = &mpa.Reader{Decoder: &mpa.Decoder{Input: song.Body}}
+							r = &mpa.Reader{Decoder: &mpa.Decoder{Input: song}}
 							pauseDur = time.Duration(0)
 							defDur = time.Duration(0)
-							defTrack = &music.BTrack{}
+							defTrack = &jamsonic.Track{}
 							app.printBar(defDur, defTrack)
 
 							temp, _ := strconv.Atoi(track.DurationMillis)

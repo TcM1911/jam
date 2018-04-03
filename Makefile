@@ -1,4 +1,4 @@
-APP = jam
+APP = jamsonic
 
 VERSION=$(shell \
         grep "const Version" version/version.go \
@@ -13,8 +13,8 @@ DIR = $(shell pwd)
 GO = go
 
 # GOX = gox -os="linux darwin windows freebsd openbsd netbsd"
-GOX = gox -os="linux"
-GOX_ARGS = "-output={{.Dir}}-$(VERSION)_{{.OS}}_{{.Arch}}"
+# GOX = gox -os="linux"
+# GOX_ARGS = "-output={{.Dir}}-$(VERSION)_{{.OS}}_{{.Arch}}"
 
 NO_COLOR=\033[0m
 OK_COLOR=\033[32;01m
@@ -23,8 +23,8 @@ WARN_COLOR=\033[33;01m
 
 MAKE_COLOR=\033[33;01m%-20s\033[0m
 
-MAIN = github.com/budkin/jam
-EXE = $(shell ls jam-*_*)
+MAIN = github.com/TcM1911/jamsonic
+EXE = $(shell ls jamsonic-*_*)
 
 PACKAGE=$(APP)-$(VERSION)
 ARCHIVE=$(PACKAGE).tar
@@ -48,7 +48,7 @@ init: ## Install requirements
 	@go get -u github.com/Masterminds/rmvcsdir
 	@go get -u github.com/golang/lint/golint
 	@go get -u github.com/kisielk/errcheck
-	@go get -u github.com/mitchellh/gox
+	# @go get -u github.com/mitchellh/gox
 
 .PHONY: deps
 deps: ## Install dependencies
@@ -58,7 +58,7 @@ deps: ## Install dependencies
 .PHONY: build
 build: ## Make binary
 	@echo -e "$(OK_COLOR)[$(APP)] Build $(NO_COLOR)"
-	@$(GO) build -ldflags="-s -w" .
+	@$(GO) build -o $(APP) -ldflags="-s -w" ./cmd/...
 
 .PHONY: test
 test: ## Launch unit tests
@@ -82,6 +82,6 @@ errcheck: ## Launch go errcheck
 coverage: ## Launch code coverage
 	@$(foreach pkg,$(PKGS),$(GO) test -cover $(pkg) $(glide novendor) || exit;)
 
-gox: ## Make all binaries
-	@echo -e "$(OK_COLOR)[$(APP)] Create binaries $(NO_COLOR)"
-	$(GOX) $(GOX_ARGS) github.com/budkin/jam
+# gox: ## Make all binaries
+# 	@echo -e "$(OK_COLOR)[$(APP)] Create binaries $(NO_COLOR)"
+# 	$(GOX) $(GOX_ARGS) github.com/TcM1911/jamsonic

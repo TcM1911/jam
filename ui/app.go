@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,23 +22,16 @@
 package ui
 
 import (
-	// "encoding/json"
-	// "fmt"
+	"encoding/json"
 	"log"
 	"math/rand"
 	"sort"
-	// "strconv"
 	"strings"
 
-	// "time"
-
-	"github.com/boltdb/bolt"
-	"github.com/budkin/gmusic"
+	"github.com/TcM1911/jamsonic"
+	"github.com/TcM1911/jamsonic/lastfm"
+	"github.com/TcM1911/jamsonic/storage"
 	"github.com/gdamore/tcell"
-	// runewidth "github.com/mattn/go-runewidth"
-
-	"github.com/budkin/jam/lastfm"
-	"github.com/budkin/jam/music"
 )
 
 const (
@@ -47,15 +41,6 @@ const (
 	next
 	prev
 )
-
-// type Database struct {
-// 	DB         *bolt.DB
-// 	ArtistsMap map[string]bool
-// 	Artists    sort.StringSlice
-// 	Songs      map[string][]string
-// 	Albums     map[string][]string
-// 	LastAlbum  string
-// }
 
 type Status struct {
 	ScrOffset map[bool]int
@@ -67,8 +52,8 @@ type Status struct {
 	InSearch  bool
 	LastFM    bool
 	NumTrack  int
-	Queue     [][]*music.BTrack // playlist, updated on each movement of cursor in artists view
-	Query     []rune            // search query
+	Queue     [][]*jamsonic.Track // playlist, updated on each movement of cursor in artists view
+	Query     []rune              // search query
 
 	State       chan int // player's state: play, pause, stop, etc
 	RepeatTrack bool
@@ -80,12 +65,11 @@ type App struct {
 	Width  int
 	Height int
 
-	GMusic *gmusic.GMusic
-	LastFM *lastfm.Client
+	Provider jamsonic.Provider
+	LastFM   *lastfm.Client
 
-	// Better:
-	// Database *Database
-	DB         *bolt.DB
+	DB         *storage.BoltDB
+	Library    map[string]*jamsonic.Artist
 	ArtistsMap map[string]bool
 	Artists    sort.StringSlice
 	Playlists  sort.StringSlice
@@ -97,7 +81,7 @@ type App struct {
 }
 
 // New creates a new UI
-func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt.DB) (*App, error) {
+func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *storage.BoltDB) (*App, error) {
 	var lastfmStatus bool
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -117,9 +101,10 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 		Screen:     screen,
 		Width:      width,
 		Height:     height,
-		GMusic:     gmusic,
+		Provider:   provider,
 		LastFM:     lmclient,
 		DB:         db,
+		Library:    map[string]*jamsonic.Artist{},
 		ArtistsMap: map[string]bool{},
 		Artists:    sort.StringSlice{},
 		Songs:      map[string][]string{},
@@ -142,7 +127,7 @@ func New(gmusic *gmusic.GMusic, lmclient *lastfm.Client, lastfm string, db *bolt
 			InTracks: false,
 			InSearch: false,
 			NumTrack: 0,
-			Queue:    make([][]*music.BTrack, 0),
+			Queue:    make([][]*jamsonic.Track, 0),
 			State:    make(chan int),
 			LastFM:   lastfmStatus,
 		},
@@ -159,74 +144,73 @@ func (app *App) Run() {
 }
 
 func (app *App) populatePlaylists() {
-	app.Playlists = sort.StringSlice{}
-	app.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Playlists"))
-		c := b.Cursor()
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			app.Playlists = append(app.Playlists, string(k))
-		}
-
-		return nil
-	})
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Playlists = storage.GetPlaylists(app.DB)
+	}
 }
 
 func (app *App) populateArtists() {
-	app.Artists = sort.StringSlice{}
-	app.DB.View(func(tx *bolt.Tx) error {
-		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte("Library"))
-		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if !app.ArtistsMap[string(k)] {
-				app.ArtistsMap[string(k)] = false
-			}
-			if v == nil {
-				if err := b.Bucket(k).ForEach(func(kk []byte, vv []byte) error {
-					app.Albums[string(k)] = append(app.Albums[string(k)], string(kk))
-
-					return nil
-				}); err != nil {
-					log.Fatalf("Can't populate artists: %s", err)
-				}
-			}
-
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Artists, app.ArtistsMap, app.Albums = storage.GetArtistsAndAlbums(app.DB)
+		return
+	}
+	as, err := app.DB.Artists()
+	if err != nil {
+		app.Screen.Fini()
+		log.Fatalln("Error when populating artists:", err.Error())
+	}
+	artists := sort.StringSlice{}
+	artistsMap := make(map[string]bool)
+	albums := make(map[string][]string)
+	for _, artist := range as {
+		tmpAlbums := make([]string, len(artist.Albums))
+		for i, v := range artist.Albums {
+			tmpAlbums[i] = v.Name
 		}
-		for k := range app.ArtistsMap {
-			app.Artists = append(app.Artists, k)
-		}
-		app.Artists.Sort()
-		// log.Printf("Artists: %s", app.Artists)
-		return nil
-	})
+		albums[artist.Name] = tmpAlbums
+		artists = append(artists, artist.Name)
+		artistsMap[artist.Name] = false
+		app.Library[artist.Name] = artist
+	}
+	artists.Sort()
+	app.Artists = artists
+	app.ArtistsMap = artistsMap
+	app.Albums = albums
 }
 
 func (app *App) populateSongs(what []string) {
-	app.Songs = map[string][]string{}
-	if err := app.DB.View(func(tx *bolt.Tx) error {
-		var b *bolt.Bucket
-		var c *bolt.Cursor
-		if app.Status.CurView == 0 {
-			i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
-			b = tx.Bucket([]byte("Library")).Bucket([]byte(what[i-app.numAlb(i)]))
-		} else if app.Status.CurView == 1 {
-			b = tx.Bucket([]byte("Playlists"))
-		}
-		c = b.Cursor()
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if v == nil {
-				cc := b.Bucket(k).Cursor()
-				for kk, vv := cc.First(); kk != nil; kk, vv = cc.Next() {
-					app.Songs[string(k)] = append(app.Songs[string(k)], string(vv))
-				}
-			}
-		}
-		return nil
-	}); err != nil {
-		log.Fatalf("Can't populate songs: %s", err)
+	if app.Provider.GetProvider() == jamsonic.GooglePlayMusic {
+		app.Songs = storage.GetTracks(app.DB, what, app.Status.CurView, app.Status.CurPos, app.Status.ScrOffset, app.numAlb)
+		return
 	}
-
+	app.Songs = make(map[string][]string)
+	// Artist index
+	i := app.Status.CurPos[false] - 1 + app.Status.ScrOffset[false]
+	// Album index
+	j := app.numAlb(i) - 1
+	tmp := what[i]
+	for tmp == "" {
+		i--
+		tmp = what[i]
+	}
+	artist := app.Library[what[i]]
+	if j < 0 {
+		for _, album := range artist.Albums {
+			trackList := make([]string, 0)
+			for _, track := range album.Tracks {
+				buf, _ := json.Marshal(track)
+				trackList = append(trackList, string(buf))
+			}
+			app.Songs[album.Name] = trackList
+		}
+	} else {
+		trackList := make([]string, 0)
+		for _, track := range artist.Albums[j].Tracks {
+			buf, _ := json.Marshal(track)
+			trackList = append(trackList, string(buf))
+		}
+		app.Songs[artist.Albums[j].Name] = trackList
+	}
 }
 
 func (app *App) search(what []string) {
@@ -365,7 +349,7 @@ func (app *App) mainLoop() {
 			case ' ':
 				app.toggleAlbums()
 			case 'u':
-				err := music.RefreshLibrary(app.DB, app.GMusic)
+				err := jamsonic.RefreshLibrary(app.DB, app.Provider)
 				if err != nil {
 					log.Fatalf("Can't refresh library: %s", err)
 				}

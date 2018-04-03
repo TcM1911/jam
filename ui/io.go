@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,12 +27,11 @@ import (
 	"time"
 
 	// "github.com/gdamore/tcell"
+	"github.com/TcM1911/jamsonic"
 	runewidth "github.com/mattn/go-runewidth"
-
-	"github.com/budkin/jam/music"
 )
 
-func (app *App) makeSongLine(track *music.BTrack) string {
+func (app *App) makeSongLine(track *jamsonic.Track) string {
 	var res string
 	var run []rune
 	length := 0
