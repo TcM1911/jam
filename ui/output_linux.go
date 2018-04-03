@@ -45,7 +45,7 @@ func makeOutputStream() (OutputStream, error) {
 
 func (los *linuxOutputStream) CloseStream() error {
 	los.Stream.Free()
-	if _, err := los.Stream.Drain(); err != nil {
+	if err := los.Stream.Drain(); err != nil {
 		return err
 	}
 	return nil
