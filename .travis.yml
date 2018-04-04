@@ -14,5 +14,6 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install portaudio; fi
 
 script:
+  - make init
   - make test
   - make build
