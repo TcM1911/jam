@@ -16,9 +16,3 @@ script:
   - make init
   - make test
   - make build
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=386 make test     ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=386 make build    ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=arm make test     ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=arm make build    ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=arm64 make test   ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then CGO_ENABLED=1 GOOS=linux GOARCH=arm64 make build  ; fi
