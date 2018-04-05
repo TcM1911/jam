@@ -71,19 +71,21 @@ test: ## Launch unit tests
 .PHONY: release
 release: test build ## Make a release
 	@echo -e "$(OK_COLOR)[$(APP)] Creating a release $(NO_COLOR)"
-	mkdir -p $(PACKAGE)
+	mkdir -p $(PACKAGE) dist
 	cp $(RELEASE_FILES) $(PACKAGE)
 	cp $(APP) $(PACKAGE)
-	tar $(TAR_ARGS) $(ARCHIVE) $(PACKAGE)
+	tar $(TAR_ARGS) dist/$(ARCHIVE) $(PACKAGE)
+	rm -r $(PACKAGE)
 
 .PHONY: release_windows
 release_windows:
 	@echo -e "$(OK_COLOR)[$(APP)] Creating a release for Windows $(NO_COLOR)"
 	GOOS=windows $(GO) build -o $(APP).exe -ldflags="-s -w" ./cmd/...
-	mkdir -p $(PACKAGE)
+	mkdir -p $(PACKAGE) dist
 	cp $(RELEASE_FILES) $(PACKAGE)
 	cp $(APP).exe $(PACKAGE)
-	zip -r $(WINDOWS_ARCHIVE) $(PACKAGE)
+	zip -r dist/$(WINDOWS_ARCHIVE) $(PACKAGE)
+	rm -r $(PACKAGE)
 
 .PHONY: lint
 lint: ## Launch golint
