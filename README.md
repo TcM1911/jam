@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/TcM1911/jamsonic.svg?branch=master)](https://travis-ci.org/TcM1911/jamsonic)
 # Jamsonic
 
 Jamsonic is a console based music player for Subsonic/Madsonic/Libresonic/Airsonic.
