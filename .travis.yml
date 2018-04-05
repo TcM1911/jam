@@ -10,10 +10,19 @@ addons:
       - libpulse-dev
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update           ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install portaudio; fi
 
 script:
   - make init
   - make test
   - make build
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=386 make test     ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=386 make build    ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=arm make test     ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=arm make build    ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=arm64 make test   ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=linux GOARCH=arm64 make build  ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=windows GOARCH=amd64 make test ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=windows GOARCH=amd64 make build; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=windows GOARCH=386 make test   ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then GOOS=windows GOARCH=386 make build  ; fi
