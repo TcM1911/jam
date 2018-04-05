@@ -24,10 +24,14 @@ WARN_COLOR=\033[33;01m
 MAKE_COLOR=\033[33;01m%-20s\033[0m
 
 MAIN = github.com/TcM1911/jamsonic
-EXE = $(shell ls jamsonic-*_*)
+EXE = $(shell ls jamsonic.exe)
 
+OS=$(shell uname -s)
 PACKAGE=$(APP)-$(VERSION)
-ARCHIVE=$(PACKAGE).tar
+ARCHIVE=$(PACKAGE)-$(OS).tar.gz
+WINDOWS_ARCHIVE=$(APP)-$(VERSION)-Windows.zip
+TAR_ARGS=cfvz
+RELEASE_FILES = LICENSE README.md
 
 .DEFAULT_GOAL := help
 
@@ -38,7 +42,7 @@ help:
 
 clean: ## Cleanup
 	@echo -e "$(OK_COLOR)[$(APP)] Cleanup$(NO_COLOR)"
-	@rm -fr $(APP) $(EXE)
+	@rm -fr $(APP) $(EXE) $(ARCHIVE) $(PACKAGE) $(WINDOWS_ARCHIVE) 2> /dev/null
 
 .PHONY: init
 init: ## Install requirements
@@ -48,7 +52,6 @@ init: ## Install requirements
 	@go get -u github.com/Masterminds/rmvcsdir
 	@go get -u github.com/golang/lint/golint
 	@go get -u github.com/kisielk/errcheck
-	# @go get -u github.com/mitchellh/gox
 
 .PHONY: deps
 deps: ## Install dependencies
@@ -64,6 +67,23 @@ build: ## Make binary
 test: ## Launch unit tests
 	@echo -e "$(OK_COLOR)[$(APP)] Launch unit tests $(NO_COLOR)"
 	@govendor test +local
+
+.PHONY: release
+release: test build ## Make a release
+	@echo -e "$(OK_COLOR)[$(APP)] Creating a release $(NO_COLOR)"
+	mkdir -p $(PACKAGE)
+	cp $(RELEASE_FILES) $(PACKAGE)
+	cp $(APP) $(PACKAGE)
+	tar $(TAR_ARGS) $(ARCHIVE) $(PACKAGE)
+
+.PHONY: release_windows
+release_windows:
+	@echo -e "$(OK_COLOR)[$(APP)] Creating a release for Windows $(NO_COLOR)"
+	GOOS=windows $(GO) build -o $(APP).exe -ldflags="-s -w" ./cmd/...
+	mkdir -p $(PACKAGE)
+	cp $(RELEASE_FILES) $(PACKAGE)
+	cp $(APP).exe $(PACKAGE)
+	zip -r $(WINDOWS_ARCHIVE) $(PACKAGE)
 
 .PHONY: lint
 lint: ## Launch golint
