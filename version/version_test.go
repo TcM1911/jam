@@ -27,7 +27,7 @@ import (
 )
 
 func Test_Version(t *testing.T) {
-	validVersion := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	validVersion := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT){0,1}$`)
 	if !validVersion.MatchString(Version) {
 		t.Fatal("Invalid version")
 	}
