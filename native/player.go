@@ -43,20 +43,20 @@ type StreamHandler struct {
 	writer       OutputStream
 	writerMu     sync.Mutex
 	reader       io.Reader
-	FinishedChan chan struct{}
+	finishedChan chan struct{}
 	stopChan     chan struct{}
 	newTrackChan chan *io.Reader
-	ErrChan      chan error
+	errChan      chan error
 	pauseChan    chan struct{}
 	continueChan chan struct{}
 }
 
 func New() *StreamHandler {
 	return &StreamHandler{
-		FinishedChan: make(chan struct{}),
+		finishedChan: make(chan struct{}),
 		stopChan:     make(chan struct{}),
 		newTrackChan: make(chan *io.Reader),
-		ErrChan:      make(chan error),
+		errChan:      make(chan error),
 		pauseChan:    make(chan struct{}),
 		continueChan: make(chan struct{}),
 	}
@@ -67,6 +67,10 @@ func (p *StreamHandler) closeOutput() {
 	defer p.writerMu.Unlock()
 	p.writer.CloseStream()
 	p.writer = nil
+}
+
+func (p *StreamHandler) Errors() <-chan error {
+	return p.errChan
 }
 
 func (p *StreamHandler) Play(stream io.Reader) error {
@@ -115,7 +119,7 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 			_, err := p.reader.Read(buf)
 			if err == io.EOF {
 				// Finished with this Track. Tell controller we are done.
-				p.FinishedChan <- struct{}{}
+				p.finishedChan <- struct{}{}
 				select {
 				// New track
 				case r := <-p.newTrackChan:
@@ -125,12 +129,12 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 					return
 				}
 			} else if err != nil {
-				p.ErrChan <- err
+				p.errChan <- err
 				return
 			}
 			_, err = p.writer.Write(buf)
 			if err != nil {
-				p.ErrChan <- err
+				p.errChan <- err
 				return
 			}
 		}
@@ -147,6 +151,10 @@ func (p *StreamHandler) Pause() {
 
 func (p *StreamHandler) Continue() {
 	p.continueChan <- struct{}{}
+}
+
+func (p *StreamHandler) Finished() <-chan struct{} {
+	return p.finishedChan
 }
 
 var newDecoder func(*io.Reader) io.Reader = func(r *io.Reader) io.Reader {
