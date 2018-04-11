@@ -66,7 +66,7 @@ build: ## Make binary
 .PHONY: test
 test: ## Launch unit tests
 	@echo -e "$(OK_COLOR)[$(APP)] Launch unit tests $(NO_COLOR)"
-	@govendor test -timeout 1m -v +local
+	@govendor test -timeout 1m -cover -race +local
 
 .PHONY: release
 release: test build ## Make a release
