@@ -23,6 +23,7 @@ package jamsonic
 import (
 	"io"
 	"sync"
+	"time"
 )
 
 // State is the state the player can be in.
@@ -78,41 +79,53 @@ func (q *playqueue) pushSong(t *Track) {
 	q.array = tmp
 }
 
-func NewPlayer(p Provider, h StreamHandler) *Player {
+func NewPlayer(p Provider, h StreamHandler, cb func(*CallbackData), cd int) *Player {
+	if cd == 0 {
+		cd = 1
+	}
 	player := &Player{
-		Handler:   h,
-		Provider:  p,
-		Error:     make(chan error),
-		closeChan: make(chan struct{}),
-		playChan:  make(chan struct{}),
-		pauseChan: make(chan struct{}),
-		nextChan:  make(chan struct{}),
-		prevChan:  make(chan struct{}),
-		stopChan:  make(chan struct{}),
-		played:    &playqueue{array: make([]*Track, 0)},
+		Handler:          h,
+		Provider:         p,
+		Error:            make(chan error),
+		Callback:         cb,
+		CallbackInterval: cd,
+		closeChan:        make(chan struct{}),
+		playChan:         make(chan struct{}),
+		pauseChan:        make(chan struct{}),
+		nextChan:         make(chan struct{}),
+		prevChan:         make(chan struct{}),
+		stopChan:         make(chan struct{}),
+		played:           &playqueue{array: make([]*Track, 0)},
 	}
 	go player.playerLoop()
 	return player
 }
 
+type CallbackData struct {
+	CurrentTrack *Track
+	Duration     time.Duration
+}
+
 type Player struct {
-	Handler        StreamHandler
-	Provider       Provider
-	Error          chan error
-	queue          *playqueue
-	played         *playqueue
-	queueMu        sync.RWMutex
-	currentTrack   *Track
-	currentTrackMu sync.RWMutex
-	currentStream  io.ReadCloser
-	state          State
-	stateMu        sync.RWMutex
-	playChan       chan struct{}
-	stopChan       chan struct{}
-	pauseChan      chan struct{}
-	nextChan       chan struct{}
-	prevChan       chan struct{}
-	closeChan      chan struct{}
+	Handler          StreamHandler
+	Provider         Provider
+	Error            chan error
+	Callback         func(*CallbackData)
+	CallbackInterval int
+	queue            *playqueue
+	played           *playqueue
+	queueMu          sync.RWMutex
+	currentTrack     *Track
+	currentTrackMu   sync.RWMutex
+	currentStream    io.ReadCloser
+	state            State
+	stateMu          sync.RWMutex
+	playChan         chan struct{}
+	stopChan         chan struct{}
+	pauseChan        chan struct{}
+	nextChan         chan struct{}
+	prevChan         chan struct{}
+	closeChan        chan struct{}
 }
 
 func (p *Player) Play() {
@@ -172,18 +185,27 @@ func (p *Player) updateCurrentTrack(t *Track) {
 
 func (p *Player) playerLoop() {
 	finished := p.Handler.Finished()
+	ticker := time.NewTicker(time.Second * time.Duration(p.CallbackInterval))
+	// Timers
+	pausedDuration := time.Duration(0)
+	songDuration := time.Duration(0)
+	var pauseTimer time.Time
+	var songStart time.Time
 	for {
 		select {
 		case <-p.playChan:
 			status := p.changeState(Playing)
 			if status == Paused {
 				p.Handler.Continue()
+				pausedDuration = pausedDuration + time.Since(pauseTimer)
 				continue
 			}
 			p.playNextInQueue(p.queue.popSong)
+			songStart = time.Now()
 		case <-p.pauseChan:
 			p.Handler.Pause()
 			p.changeState(Paused)
+			pauseTimer = time.Now()
 		case <-p.stopChan:
 			if p.GetCurrentState() == Stopped {
 				continue
@@ -193,6 +215,7 @@ func (p *Player) playerLoop() {
 				p.queue.pushSong(ct)
 			}
 			p.stopPlaying()
+			pausedDuration = time.Duration(0)
 		case <-p.nextChan:
 			state := p.GetCurrentState()
 			if state == Stopped {
@@ -206,6 +229,8 @@ func (p *Player) playerLoop() {
 				p.played.pushSong(ct)
 			}
 			p.playNextInQueue(p.queue.popSong)
+			songStart = time.Now()
+			pausedDuration = time.Duration(0)
 		case <-p.prevChan:
 			state := p.GetCurrentState()
 			if state == Stopped {
@@ -216,6 +241,8 @@ func (p *Player) playerLoop() {
 			}
 			p.queue.pushSong(p.CurrentTrack())
 			p.playNextInQueue(p.played.popSong)
+			songStart = time.Now()
+			pausedDuration = time.Duration(0)
 		case <-finished:
 			ct := p.CurrentTrack()
 			if ct != nil {
@@ -226,8 +253,23 @@ func (p *Player) playerLoop() {
 				continue
 			}
 			p.playNextInQueue(p.queue.popSong)
+			pausedDuration = time.Duration(0)
 		case <-p.closeChan:
 			return
+		case <-ticker.C:
+			if p.GetCurrentState() == Stopped {
+				continue
+			}
+			if p.Callback != nil {
+				if p.GetCurrentState() == Playing {
+					songDuration = time.Since(songStart) - pausedDuration
+				}
+				data := &CallbackData{
+					CurrentTrack: p.CurrentTrack(),
+					Duration:     songDuration,
+				}
+				p.Callback(data)
+			}
 		}
 	}
 }

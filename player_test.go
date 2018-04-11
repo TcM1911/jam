@@ -370,7 +370,7 @@ func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 		doPause:    func() {},
 		doContinue: func() {},
 	}
-	return NewPlayer(provider, handler), finishedChan, provider, handler
+	return NewPlayer(provider, handler, nil, 0), finishedChan, provider, handler
 }
 
 type recorder struct {
