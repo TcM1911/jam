@@ -22,6 +22,7 @@ package jamsonic
 
 import (
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,23 +71,29 @@ func TestPlayControl(t *testing.T) {
 
 	player.Close()
 
-	t.Run("Playing", func(t *testing.T) {
+	t.Run("Stopping", func(t *testing.T) {
 		p, _, provider, handler := getPlayer()
 		p.CreatePlayQueue(tracks)
 
 		// At stop nothing should happen.
 		p.Stop()
 		time.Sleep(time.Millisecond * 200)
+		calledMu.RLock()
 		assert.Equal(0, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledStopped, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
 		assert.Nil(p.CurrentTrack(), "Current track should be nil.")
 		assert.Equal(tracks[0], p.NextTrack(), "1st track should be marked as next")
 
 		p.Play()
 		time.Sleep(time.Millisecond * 200)
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
@@ -94,8 +101,10 @@ func TestPlayControl(t *testing.T) {
 		// Stop playing
 		p.Stop()
 		time.Sleep(time.Millisecond * 200)
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(1, handler.calledStopped, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
 		assert.Nil(p.CurrentTrack(), "Current track should be nil.")
 		assert.Equal(tracks[0], p.NextTrack(), "1st track should be marked as next")
@@ -108,8 +117,12 @@ func TestPlayControl(t *testing.T) {
 		p.CreatePlayQueue(tracks)
 		p.Play()
 		time.Sleep(time.Millisecond * 200)
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
@@ -119,8 +132,12 @@ func TestPlayControl(t *testing.T) {
 		finished <- struct{}{}
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(2, handler.calledPlay, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[1].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[1], p.CurrentTrack(), "2nd track not playing")
 		assert.Equal(tracks[2], p.NextTrack(), "3rd track should be marked as next")
 		assert.Equal(tracks[0], p.played.nextSong(), "1st track should be first in the played list")
@@ -130,8 +147,12 @@ func TestPlayControl(t *testing.T) {
 		finished <- struct{}{}
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(3, handler.calledPlay, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[2].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[2], p.CurrentTrack(), "3rd track not playing")
 		assert.Equal(tracks[3], p.NextTrack(), "4th track should be marked as next")
 		assert.Equal(tracks[1], p.played.nextSong(), "2nd track should be first in the played list")
@@ -141,8 +162,12 @@ func TestPlayControl(t *testing.T) {
 		finished <- struct{}{}
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(4, handler.calledPlay, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[3].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[3], p.CurrentTrack(), "4th track not playing")
 		assert.Nil(p.NextTrack(), "Nil should be returned for next track")
 		assert.Equal(tracks[2], p.played.nextSong(), "3rd track should be first in the played list")
@@ -166,10 +191,14 @@ func TestPlayControl(t *testing.T) {
 
 		// Ensure initial state is correct.
 		time.Sleep(time.Millisecond * 200)
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
@@ -178,9 +207,11 @@ func TestPlayControl(t *testing.T) {
 		p.Pause()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Paused, p.GetCurrentState(), "State should be paused.")
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(1, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 
@@ -188,9 +219,11 @@ func TestPlayControl(t *testing.T) {
 		p.Play()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be paused.")
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(1, handler.calledPause, "Wrong number of calls")
 		assert.Equal(1, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 
@@ -212,10 +245,14 @@ func TestPlayControl(t *testing.T) {
 		// Ensure initial state is correct.
 		p.Play()
 		time.Sleep(time.Millisecond * 200)
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
+		calledMu.RLock()
 		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
@@ -224,10 +261,14 @@ func TestPlayControl(t *testing.T) {
 		p.Next()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(2, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[1].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[1], p.CurrentTrack(), "2nd track not playing")
 		assert.Equal(tracks[2], p.NextTrack(), "3rd track should be marked as next")
 		assert.Equal(tracks[0], p.played.nextSong(), "1st track should be first in the played list")
@@ -239,10 +280,14 @@ func TestPlayControl(t *testing.T) {
 		p.Next()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(3, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(1, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[2].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[2], p.CurrentTrack(), "3rd track not playing")
 		assert.Equal(tracks[3], p.NextTrack(), "4th track should be marked as next")
 		assert.Equal(tracks[1], p.played.nextSong(), "2nd track should be first in the played list")
@@ -267,7 +312,9 @@ func TestPlayControl(t *testing.T) {
 		p.Previous()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "Wrong state")
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[0], p.CurrentTrack(), "1st track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 		assert.Nil(p.played.nextSong(), "Nil should be returned for played.")
@@ -275,10 +322,14 @@ func TestPlayControl(t *testing.T) {
 		// Ensure initial state is correct. First track in played list.
 		p.Next()
 		time.Sleep(time.Millisecond * 200)
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[1].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
+		calledMu.RLock()
 		assert.Equal(2, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
 		assert.Equal(tracks[1], p.CurrentTrack(), "2nd track not playing")
 		assert.Equal(tracks[2], p.NextTrack(), "3rd track should be marked as next")
@@ -288,10 +339,14 @@ func TestPlayControl(t *testing.T) {
 		p.Previous()
 		time.Sleep(time.Millisecond * 200)
 		assert.Equal(Playing, p.GetCurrentState(), "State should be playing.")
+		calledMu.RLock()
 		assert.Equal(3, handler.calledPlay, "Wrong number of calls")
 		assert.Equal(0, handler.calledPause, "Wrong number of calls")
 		assert.Equal(0, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
+		provider.streamIDMu.RLock()
 		assert.Equal(tracks[0].ID, provider.streamID, "Wrong track id called")
+		provider.streamIDMu.RUnlock()
 		assert.Equal(tracks[0], p.CurrentTrack(), "1st track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 		assert.Nil(p.played.nextSong(), "Nil should be returned for played.")
@@ -342,32 +397,43 @@ type mockStreaHandler struct {
 	calledContrinue int
 }
 
+var calledMu sync.RWMutex
+
 func (m *mockStreaHandler) Finished() <-chan struct{} {
 	return m.doFinished()
 }
 
 func (m *mockStreaHandler) Play(r io.Reader) error {
+	calledMu.Lock()
+	defer calledMu.Unlock()
 	m.calledPlay += 1
 	return m.doPlay(r)
 }
 
 func (m *mockStreaHandler) Stop() {
+	calledMu.Lock()
+	defer calledMu.Unlock()
 	m.calledStopped += 1
 	m.doStop()
 }
 
 func (m *mockStreaHandler) Pause() {
+	calledMu.Lock()
+	defer calledMu.Unlock()
 	m.calledPause += 1
 	m.doPause()
 }
 
 func (m *mockStreaHandler) Continue() {
+	calledMu.Lock()
+	defer calledMu.Unlock()
 	m.calledContrinue += 1
 	m.doContinue()
 }
 
 type mockProvider struct {
 	streamID              string
+	streamIDMu            sync.RWMutex
 	doListTracks          func() ([]*Track, error)
 	doFetchLibrary        func() ([]*Artist, error)
 	doGetTrackInfo        func(trackID string) (*Track, error)
@@ -390,6 +456,8 @@ func (m *mockProvider) GetTrackInfo(trackID string) (*Track, error) {
 }
 
 func (m *mockProvider) GetStream(songID string) (io.ReadCloser, error) {
+	m.streamIDMu.Lock()
+	defer m.streamIDMu.Unlock()
 	m.streamID = songID
 	return m.doGetStream(songID)
 }

@@ -38,7 +38,8 @@ const (
 )
 
 type playqueue struct {
-	array []*Track
+	arrayMu sync.RWMutex
+	array   []*Track
 }
 
 /*func newQueue(tracks []*Track) *playqueue {
@@ -47,6 +48,8 @@ type playqueue struct {
 
 // nextSong returns the next song in the play queue.
 func (q *playqueue) nextSong() *Track {
+	q.arrayMu.RLock()
+	defer q.arrayMu.RUnlock()
 	if len(q.array) >= 1 {
 		return q.array[0]
 	}
@@ -56,6 +59,8 @@ func (q *playqueue) nextSong() *Track {
 // popSong returns the next song in the play queue and removes it from the queue.
 func (q *playqueue) popSong() *Track {
 	track := q.nextSong()
+	q.arrayMu.Lock()
+	defer q.arrayMu.Unlock()
 	tmp := make([]*Track, len(q.array)-1)
 	copy(tmp, q.array[1:])
 	q.array = tmp
@@ -63,6 +68,8 @@ func (q *playqueue) popSong() *Track {
 }
 
 func (q *playqueue) pushSong(t *Track) {
+	q.arrayMu.Lock()
+	defer q.arrayMu.Unlock()
 	tmp := make([]*Track, len(q.array)+1)
 	tmp[0] = t
 	for i, tr := range q.array {
@@ -89,22 +96,23 @@ func NewPlayer(p Provider, h StreamHandler) *Player {
 }
 
 type Player struct {
-	Handler       StreamHandler
-	Provider      Provider
-	Error         chan error
-	queue         *playqueue
-	played        *playqueue
-	queueMu       sync.RWMutex
-	currentTrack  *Track
-	currentStream io.ReadCloser
-	state         State
-	stateMu       sync.RWMutex
-	playChan      chan struct{}
-	stopChan      chan struct{}
-	pauseChan     chan struct{}
-	nextChan      chan struct{}
-	prevChan      chan struct{}
-	closeChan     chan struct{}
+	Handler        StreamHandler
+	Provider       Provider
+	Error          chan error
+	queue          *playqueue
+	played         *playqueue
+	queueMu        sync.RWMutex
+	currentTrack   *Track
+	currentTrackMu sync.RWMutex
+	currentStream  io.ReadCloser
+	state          State
+	stateMu        sync.RWMutex
+	playChan       chan struct{}
+	stopChan       chan struct{}
+	pauseChan      chan struct{}
+	nextChan       chan struct{}
+	prevChan       chan struct{}
+	closeChan      chan struct{}
 }
 
 func (p *Player) Play() {
@@ -112,7 +120,12 @@ func (p *Player) Play() {
 }
 
 func (p *Player) Pause() {
-	p.pauseChan <- struct{}{}
+	state := p.GetCurrentState()
+	if state == Playing {
+		p.pauseChan <- struct{}{}
+	} else if state == Paused {
+		p.Play()
+	}
 }
 
 func (p *Player) Next() {
@@ -146,7 +159,15 @@ func (p *Player) NextTrack() *Track {
 
 // CurrentTrack returns the current playing or paused track.
 func (p *Player) CurrentTrack() *Track {
+	p.currentTrackMu.RLock()
+	defer p.currentTrackMu.RUnlock()
 	return p.currentTrack
+}
+
+func (p *Player) updateCurrentTrack(t *Track) {
+	p.currentTrackMu.Lock()
+	defer p.currentTrackMu.Unlock()
+	p.currentTrack = t
 }
 
 func (p *Player) playerLoop() {
@@ -167,8 +188,9 @@ func (p *Player) playerLoop() {
 			if p.GetCurrentState() == Stopped {
 				continue
 			}
-			if p.currentTrack != nil {
-				p.queue.pushSong(p.currentTrack)
+			ct := p.CurrentTrack()
+			if ct != nil {
+				p.queue.pushSong(ct)
 			}
 			p.stopPlaying()
 		case <-p.nextChan:
@@ -179,8 +201,9 @@ func (p *Player) playerLoop() {
 			if state == Paused {
 				p.changeState(Playing)
 			}
-			if p.currentTrack != nil {
-				p.played.pushSong(p.currentTrack)
+			ct := p.CurrentTrack()
+			if ct != nil {
+				p.played.pushSong(ct)
 			}
 			p.playNextInQueue(p.queue.popSong)
 		case <-p.prevChan:
@@ -191,11 +214,12 @@ func (p *Player) playerLoop() {
 			if p.played.nextSong() == nil {
 				continue
 			}
-			p.queue.pushSong(p.currentTrack)
+			p.queue.pushSong(p.CurrentTrack())
 			p.playNextInQueue(p.played.popSong)
 		case <-finished:
-			if p.currentTrack != nil {
-				p.played.pushSong(p.currentTrack)
+			ct := p.CurrentTrack()
+			if ct != nil {
+				p.played.pushSong(ct)
 			}
 			if p.NextTrack() == nil {
 				p.stopPlaying()
@@ -214,12 +238,14 @@ func (p *Player) Close() {
 
 func (p *Player) playNextInQueue(getTrack func() *Track) {
 	p.queueMu.Lock()
-	p.currentTrack = getTrack()
+	ct := getTrack()
+	p.updateCurrentTrack(ct)
 	p.queueMu.Unlock()
-	if p.currentStream != nil {
-		p.currentStream.Close()
-	}
-	stream, err := p.Provider.GetStream(p.currentTrack.ID)
+
+	// Save old stream so we can close it.
+	oldStream := p.currentStream
+
+	stream, err := p.Provider.GetStream(ct.ID)
 	p.currentStream = stream
 	if err != nil {
 		handleStreamError(p, err)
@@ -228,13 +254,16 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 	if err != nil {
 		handleStreamError(p, err)
 	}
+	if oldStream != nil {
+		oldStream.Close()
+	}
 }
 
 func (p *Player) stopPlaying() {
 	p.Handler.Stop()
 	p.currentStream.Close()
 	p.currentStream = nil
-	p.currentTrack = nil
+	p.updateCurrentTrack(nil)
 	p.changeState(Stopped)
 }
 
@@ -253,7 +282,7 @@ func handleStreamError(p *Player, err error) {
 	}()
 	p.changeState(Stopped)
 	p.queueMu.Lock()
-	p.queue.pushSong(p.currentTrack)
+	p.queue.pushSong(p.CurrentTrack())
 	p.queueMu.Unlock()
 	p.currentStream.Close()
 }
