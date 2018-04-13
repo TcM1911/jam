@@ -30,15 +30,10 @@ import (
 
 func TestPortaudio(t *testing.T) {
 	assert := assert.New(t)
-	var out OutputStream
-	var err error
-	t.Run("should create outputstream", func(t *testing.T) {
-		out, err = makeOutputStream()
+	t.Run("should create outputstream and close", func(t *testing.T) {
+		out, err := makeOutputStream()
 		assert.NoError(err, "makeOutputStream should not fail")
 		assert.NotNil(out, "Output stream should not be nil")
-	})
-
-	t.Run("should close without error", func(t *testing.T) {
 		err = out.CloseStream()
 		assert.NoError(err, "Should close without error")
 	})
@@ -49,5 +44,6 @@ func TestPortaudio(t *testing.T) {
 		buf := make([]byte, inputBufferSize)
 		_, err = w.Write(buf)
 		assert.NoError(err, "Should write without error")
+		w.CloseStream()
 	})
 }
