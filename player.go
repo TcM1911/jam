@@ -253,6 +253,7 @@ func (p *Player) playerLoop() {
 				continue
 			}
 			p.playNextInQueue(p.queue.popSong)
+			songStart = time.Now()
 			pausedDuration = time.Duration(0)
 		case <-p.closeChan:
 			return
