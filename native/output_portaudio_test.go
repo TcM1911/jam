@@ -34,7 +34,7 @@ func TestPortaudio(t *testing.T) {
 
 	// For some reason calling CloseStream on Travis panics.
 	// Skip these tests on Travis.
-	if os.Getenv("$TRAVIS_OS_NAME") == "osx" {
+	if os.Getenv("TRAVIS_GO_VERSION") != "" {
 		t.SkipNow()
 	}
 
