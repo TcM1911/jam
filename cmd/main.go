@@ -42,10 +42,11 @@ const (
 )
 
 var (
-	vers   bool
-	debug  bool
-	lastFM bool
-	useGPM bool
+	vers         bool
+	debug        bool
+	lastFM       bool
+	useGPM       bool
+	experimental bool
 )
 
 func init() {
@@ -54,6 +55,7 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "debug")
 	flag.BoolVar(&lastFM, "lastfm", false, "Enable LastFM scrobbler")
 	flag.BoolVar(&useGPM, "googlemusic", false, "Use Google Play Music")
+	flag.BoolVar(&experimental, "experimental", false, "Use experimental features")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.Version))
@@ -61,6 +63,13 @@ func init() {
 	}
 
 	flag.Parse()
+
+	if experimental {
+		jamsonic.Experimental = true
+	}
+	if debug {
+		jamsonic.Debug = true
+	}
 
 	if vers {
 		fmt.Printf("%s\n", version.Version)
