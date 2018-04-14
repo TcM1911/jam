@@ -38,57 +38,20 @@ const (
 	Paused
 )
 
-type playqueue struct {
-	arrayMu sync.RWMutex
-	array   []*Track
-}
-
-/*func newQueue(tracks []*Track) *playqueue {
-	return &playqueue{array: tracks}
-}*/
-
-// nextSong returns the next song in the play queue.
-func (q *playqueue) nextSong() *Track {
-	q.arrayMu.RLock()
-	defer q.arrayMu.RUnlock()
-	if len(q.array) >= 1 {
-		return q.array[0]
-	}
-	return nil
-}
-
-// popSong returns the next song in the play queue and removes it from the queue.
-func (q *playqueue) popSong() *Track {
-	track := q.nextSong()
-	q.arrayMu.Lock()
-	defer q.arrayMu.Unlock()
-	tmp := make([]*Track, len(q.array)-1)
-	copy(tmp, q.array[1:])
-	q.array = tmp
-	return track
-}
-
-func (q *playqueue) pushSong(t *Track) {
-	q.arrayMu.Lock()
-	defer q.arrayMu.Unlock()
-	tmp := make([]*Track, len(q.array)+1)
-	tmp[0] = t
-	for i, tr := range q.array {
-		tmp[i+1] = tr
-	}
-	q.array = tmp
-}
-
-func NewPlayer(p Provider, h StreamHandler, cb func(*CallbackData), cd int) *Player {
-	if cd == 0 {
-		cd = 1
+// NewPlayer returns a new Player. The Provider should be a music provider.
+// The callback is a function that is called every interval by the Player as long as the state is
+// not stopped. If interval is set to 0, the callback will be called every 1000 ms.
+// The callback function can be used to update the UI with current play status etc.
+func NewPlayer(p Provider, h StreamHandler, callback func(*CallbackData), interval int) *Player {
+	if interval == 0 {
+		interval = 1000
 	}
 	player := &Player{
-		Handler:          h,
-		Provider:         p,
+		handler:          h,
+		provider:         p,
 		Error:            make(chan error),
-		Callback:         cb,
-		CallbackInterval: cd,
+		callback:         callback,
+		callbackInterval: interval,
 		closeChan:        make(chan struct{}),
 		playChan:         make(chan struct{}),
 		pauseChan:        make(chan struct{}),
@@ -101,17 +64,23 @@ func NewPlayer(p Provider, h StreamHandler, cb func(*CallbackData), cd int) *Pla
 	return player
 }
 
+// CallbackData is passed in to the player's callback function.
+// It holds current values from right before the callback function was called.
 type CallbackData struct {
+	// CurrentTrack is the track being played.
 	CurrentTrack *Track
-	Duration     time.Duration
+	// Duration is how long the current track has been played.
+	Duration time.Duration
 }
 
+// Player is the mp3 player struct. This struct handles all player actions.
 type Player struct {
-	Handler          StreamHandler
-	Provider         Provider
+	// Error returns errors from the handler and the provider.
 	Error            chan error
-	Callback         func(*CallbackData)
-	CallbackInterval int
+	handler          StreamHandler
+	provider         Provider
+	callback         func(*CallbackData)
+	callbackInterval int
 	queue            *playqueue
 	played           *playqueue
 	queueMu          sync.RWMutex
@@ -128,10 +97,12 @@ type Player struct {
 	closeChan        chan struct{}
 }
 
+// Play starts or resumes playing the track first in the play queue.
 func (p *Player) Play() {
 	p.playChan <- struct{}{}
 }
 
+// Pause pauses or resumes playing a track.
 func (p *Player) Pause() {
 	state := p.GetCurrentState()
 	if state == Playing {
@@ -141,14 +112,17 @@ func (p *Player) Pause() {
 	}
 }
 
+// Next skips to the next track in the play queue.
 func (p *Player) Next() {
 	p.nextChan <- struct{}{}
 }
 
+// Previous will go back to previous played track.
 func (p *Player) Previous() {
 	p.prevChan <- struct{}{}
 }
 
+// Stop should be called to stop playing the track.
 func (p *Player) Stop() {
 	p.stopChan <- struct{}{}
 }
@@ -177,6 +151,11 @@ func (p *Player) CurrentTrack() *Track {
 	return p.currentTrack
 }
 
+// Close closes the player.
+func (p *Player) Close() {
+	p.closeChan <- struct{}{}
+}
+
 func (p *Player) updateCurrentTrack(t *Track) {
 	p.currentTrackMu.Lock()
 	defer p.currentTrackMu.Unlock()
@@ -184,8 +163,8 @@ func (p *Player) updateCurrentTrack(t *Track) {
 }
 
 func (p *Player) playerLoop() {
-	finished := p.Handler.Finished()
-	ticker := time.NewTicker(time.Second * time.Duration(p.CallbackInterval))
+	finished := p.handler.Finished()
+	ticker := time.NewTicker(time.Millisecond * time.Duration(p.callbackInterval))
 	// Timers
 	pausedDuration := time.Duration(0)
 	songDuration := time.Duration(0)
@@ -196,14 +175,15 @@ func (p *Player) playerLoop() {
 		case <-p.playChan:
 			status := p.changeState(Playing)
 			if status == Paused {
-				p.Handler.Continue()
+				p.handler.Continue()
 				pausedDuration = pausedDuration + time.Since(pauseTimer)
 				continue
 			}
 			p.playNextInQueue(p.queue.popSong)
 			songStart = time.Now()
+			pausedDuration = time.Duration(0)
 		case <-p.pauseChan:
-			p.Handler.Pause()
+			p.handler.Pause()
 			p.changeState(Paused)
 			pauseTimer = time.Now()
 		case <-p.stopChan:
@@ -261,7 +241,7 @@ func (p *Player) playerLoop() {
 			if p.GetCurrentState() == Stopped {
 				continue
 			}
-			if p.Callback != nil {
+			if p.callback != nil {
 				if p.GetCurrentState() == Playing {
 					songDuration = time.Since(songStart) - pausedDuration
 				}
@@ -269,14 +249,10 @@ func (p *Player) playerLoop() {
 					CurrentTrack: p.CurrentTrack(),
 					Duration:     songDuration,
 				}
-				p.Callback(data)
+				p.callback(data)
 			}
 		}
 	}
-}
-
-func (p *Player) Close() {
-	p.closeChan <- struct{}{}
 }
 
 func (p *Player) playNextInQueue(getTrack func() *Track) {
@@ -288,12 +264,12 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 	// Save old stream so we can close it.
 	oldStream := p.currentStream
 
-	stream, err := p.Provider.GetStream(ct.ID)
+	stream, err := p.provider.GetStream(ct.ID)
 	p.currentStream = stream
 	if err != nil {
 		handleStreamError(p, err)
 	}
-	err = p.Handler.Play(stream)
+	err = p.handler.Play(stream)
 	if err != nil {
 		handleStreamError(p, err)
 	}
@@ -303,7 +279,7 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 }
 
 func (p *Player) stopPlaying() {
-	p.Handler.Stop()
+	p.handler.Stop()
 	p.currentStream.Close()
 	p.currentStream = nil
 	p.updateCurrentTrack(nil)
@@ -327,13 +303,63 @@ func handleStreamError(p *Player, err error) {
 	p.queueMu.Lock()
 	p.queue.pushSong(p.CurrentTrack())
 	p.queueMu.Unlock()
-	p.currentStream.Close()
+	if p.currentStream != nil {
+		p.currentStream.Close()
+	}
 }
 
+type playqueue struct {
+	arrayMu sync.RWMutex
+	array   []*Track
+}
+
+// nextSong returns the next song in the play queue.
+func (q *playqueue) nextSong() *Track {
+	q.arrayMu.RLock()
+	defer q.arrayMu.RUnlock()
+	if len(q.array) >= 1 {
+		return q.array[0]
+	}
+	return nil
+}
+
+// popSong returns the next song in the play queue and removes it from the queue.
+func (q *playqueue) popSong() *Track {
+	track := q.nextSong()
+	q.arrayMu.Lock()
+	defer q.arrayMu.Unlock()
+	tmp := make([]*Track, len(q.array)-1)
+	copy(tmp, q.array[1:])
+	q.array = tmp
+	return track
+}
+
+func (q *playqueue) pushSong(t *Track) {
+	q.arrayMu.Lock()
+	defer q.arrayMu.Unlock()
+	tmp := make([]*Track, len(q.array)+1)
+	tmp[0] = t
+	for i, tr := range q.array {
+		tmp[i+1] = tr
+	}
+	q.array = tmp
+}
+
+// StreamHandler should handle streams for the player. It should take an io.Reader
+// and do the decoding to play the track.
 type StreamHandler interface {
+	// Finished should return a chan that is used to signal to the Player when the
+	// track has been processed. The Player will call Play with a Reader for the next track
+	// in the queue if one exists or call Stop if it was the final track in the playing queue.
 	Finished() <-chan struct{}
+	// Play is called with an io.Reader for the track. The handler should decode the stream and
+	// send it to an output writer.
 	Play(io.Reader) error
+	// Stop is called by the Player to signal that all processing should stop. It is recommeded that
+	// output writers is closed when this is called.
 	Stop()
+	// Pause is called when stream processing should be paused.
 	Pause()
+	// Continue is called when stream processing should be resumed after it has been paused.
 	Continue()
 }

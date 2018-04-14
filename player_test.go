@@ -21,6 +21,7 @@
 package jamsonic
 
 import (
+	"errors"
 	"io"
 	"sync"
 	"testing"
@@ -350,6 +351,105 @@ func TestPlayControl(t *testing.T) {
 		assert.Equal(tracks[0], p.CurrentTrack(), "1st track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 		assert.Nil(p.played.nextSong(), "Nil should be returned for played.")
+
+		p.Close()
+	})
+
+	t.Run("Callback", func(t *testing.T) {
+		finishedChan := make(chan struct{})
+		provider := &mockProvider{
+			doGetStream: func(id string) (io.ReadCloser, error) {
+				return &recorder{streamID: id}, nil
+			},
+		}
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay:     func(io.Reader) error { return nil },
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		var callbackTrack *Track
+		var duration time.Duration
+		var p *Player
+		callback := func(data *CallbackData) {
+			callbackTrack = data.CurrentTrack
+			duration = data.Duration
+			go p.Stop()
+		}
+		p = NewPlayer(provider, handler, callback, 1000)
+		p.CreatePlayQueue(tracks)
+
+		// Should not run the callback when the state is stopped.
+		p.Stop()
+		time.Sleep(time.Millisecond * 1100)
+		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
+		assert.Equal(time.Duration(0), duration, "Duration should be 0")
+		assert.Nil(callbackTrack, "Track should be nil")
+
+		// Should run callback when state is playing.
+		p.Play()
+		time.Sleep(time.Millisecond * 1100)
+		// Callback stops the player
+		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
+		assert.True(duration >= time.Duration(800*time.Millisecond), "Too short duration")
+		assert.Equal(tracks[0], callbackTrack, "Wrong track in the callback")
+
+		p.Close()
+	})
+
+	t.Run("Handle errors from provider", func(t *testing.T) {
+		finishedChan := make(chan struct{})
+		expectedError := errors.New("expected error")
+		provider := &mockProvider{
+			doGetStream: func(id string) (io.ReadCloser, error) {
+				return &recorder{streamID: id}, nil
+			},
+		}
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay:     func(io.Reader) error { return expectedError },
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+		p.CreatePlayQueue(tracks)
+
+		p.Play()
+		err := <-p.Error
+		time.Sleep(time.Millisecond * 200)
+		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
+		assert.Equal(expectedError, err, "Returned wrong error")
+		assert.Equal(tracks[0], p.CurrentTrack(), "Wrong track set as next")
+
+		p.Close()
+	})
+
+	t.Run("Handle errors from handler", func(t *testing.T) {
+		finishedChan := make(chan struct{})
+		expectedError := errors.New("expected error")
+		provider := &mockProvider{
+			doGetStream: func(id string) (io.ReadCloser, error) {
+				return nil, expectedError
+			},
+		}
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay:     func(io.Reader) error { return nil },
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+		p.CreatePlayQueue(tracks)
+
+		p.Play()
+		err := <-p.Error
+		time.Sleep(time.Millisecond * 200)
+		assert.Equal(Stopped, p.GetCurrentState(), "State should be playing.")
+		assert.Equal(expectedError, err, "Returned wrong error")
+		assert.Equal(tracks[0], p.CurrentTrack(), "Wrong track set as next")
 
 		p.Close()
 	})
