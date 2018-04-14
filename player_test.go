@@ -228,6 +228,30 @@ func TestPlayControl(t *testing.T) {
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 
+		// Pause during the first track.
+		p.Pause()
+		time.Sleep(time.Millisecond * 200)
+		assert.Equal(Paused, p.GetCurrentState(), "State should be paused.")
+		calledMu.RLock()
+		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
+		assert.Equal(2, handler.calledPause, "Wrong number of calls")
+		assert.Equal(1, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
+		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
+		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
+
+		// Continue with a second call to pause.
+		p.Pause()
+		time.Sleep(time.Millisecond * 200)
+		assert.Equal(Playing, p.GetCurrentState(), "State should be paused.")
+		calledMu.RLock()
+		assert.Equal(1, handler.calledPlay, "Wrong number of calls")
+		assert.Equal(2, handler.calledPause, "Wrong number of calls")
+		assert.Equal(2, handler.calledContrinue, "Wrong number of calls")
+		calledMu.RUnlock()
+		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
+		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
+
 		p.Close()
 	})
 
