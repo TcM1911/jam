@@ -27,6 +27,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/TcM1911/jamsonic/tui"
+
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
@@ -100,7 +102,13 @@ func main() {
 		if err != nil {
 			log.Fatalln("Failed to sync the library with the SubSonic server:", err.Error())
 		}
-		doUI(client, &lastfm.Client{}, "None", db)
+		if experimental {
+			// artists, _ := db.Artists()
+			//tui.DrawLibraryPage(artists, client)
+			tui.New(db, client)
+		} else {
+			doUI(client, &lastfm.Client{}, "None", db)
+		}
 	}
 }
 
