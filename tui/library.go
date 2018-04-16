@@ -24,10 +24,13 @@ import (
 	"fmt"
 	"log"
 	"sort"
-
-	"github.com/gdamore/tcell"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/TcM1911/jamsonic"
+	"github.com/gdamore/tcell"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 )
 
@@ -64,9 +67,19 @@ func createArtistList(t *TUI) *tview.List {
 		t.tracksView.Clear()
 		t.albumListed = make(map[string]*jamsonic.Album)
 		t.trackListed = make(map[string]*jamsonic.Track)
+		_, _, lineWidth, _ := t.tracksView.GetInnerRect()
 		artist := t.artistMap[a]
 		for _, album := range artist.Albums {
 			albumLine := fmt.Sprintf("~~~%s~~~", album.Name)
+
+			if album.Year != uint32(0) {
+				albumLine += "{" + strconv.Itoa(int(album.Year)) + "}"
+			}
+			// Fill the rest of the line with "~"
+			width := runewidth.StringWidth(albumLine)
+			if (lineWidth - width) > 0 {
+				albumLine += getFillString(lineWidth, width, "~")
+			}
 			t.albumListed[albumLine] = album
 			t.tracksView.AddItem(albumLine, "", 0, nil)
 			for i, tr := range album.Tracks {
@@ -77,6 +90,14 @@ func createArtistList(t *TUI) *tview.List {
 					tr.TrackNumber = uint32(i + 1)
 				}
 				entry := fmt.Sprintf("%d. %s", tr.TrackNumber, tr.Title)
+				d, err := strconv.Atoi(tr.DurationMillis)
+				// If we parsed it we add duration to the entry line
+				if err == nil {
+					durration := durationString(time.Millisecond * time.Duration(d))
+					width := runewidth.StringWidth(entry + durration)
+					entry += getFillString(lineWidth, width, " ") + durration
+				}
+				// durationStr :=
 				t.tracksView.AddItem(entry, "", 0, nil)
 				t.albumListed[entry] = album
 				t.trackListed[entry] = tr
@@ -94,6 +115,21 @@ func createArtistList(t *TUI) *tview.List {
 	})
 
 	return artistList
+}
+
+func durationString(d time.Duration) string {
+	min := int(d.Minutes())
+	secs := int(d.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d", min, secs)
+}
+
+func getFillString(lineLength, stringLength int, fillStr string) string {
+	diff := lineLength - stringLength
+	if diff < 0 {
+		return ""
+	}
+	count := diff / runewidth.StringWidth(fillStr)
+	return strings.Repeat(fillStr, count)
 }
 
 func createTrackList(tui *TUI) *tview.List {
