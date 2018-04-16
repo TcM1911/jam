@@ -95,6 +95,12 @@
 			"revisionTime": "2018-03-14T08:05:35Z"
 		},
 		{
+			"checksumSHA1": "QW2kIXwhh1hKSGRosJHdM/O3ElM=",
+			"path": "github.com/rivo/tview",
+			"revision": "6b7d028eb165d0e9e79069a8b01e9152cb16e55b",
+			"revisionTime": "2018-04-14T16:56:18Z"
+		},
+		{
 			"checksumSHA1": "eDQ6f1EsNf+frcRO/9XukSEchm8=",
 			"path": "github.com/satori/go.uuid",
 			"revision": "36e9d2ebbde5e3f13ab2e25625fd453271d6522e",
