@@ -64,45 +64,7 @@ func createArtistList(t *TUI) *tview.List {
 
 	// Called every time an entry in the list is changed to.
 	artistList.SetChangedFunc(func(index int, a string, _ string, _ rune) {
-		t.tracksView.Clear()
-		t.albumListed = make(map[string]*jamsonic.Album)
-		t.trackListed = make(map[string]*jamsonic.Track)
-		_, _, lineWidth, _ := t.tracksView.GetInnerRect()
-		artist := t.artistMap[a]
-		for _, album := range artist.Albums {
-			albumLine := fmt.Sprintf("~~~%s~~~", album.Name)
-
-			if album.Year != uint32(0) {
-				albumLine += "{" + strconv.Itoa(int(album.Year)) + "}"
-			}
-			// Fill the rest of the line with "~"
-			width := runewidth.StringWidth(albumLine)
-			if (lineWidth - width) > 0 {
-				albumLine += getFillString(lineWidth, width, "~")
-			}
-			t.albumListed[albumLine] = album
-			t.tracksView.AddItem(albumLine, "", 0, nil)
-			for i, tr := range album.Tracks {
-				// Ensure the track has a matching album name.
-				tr.Album = album.Name
-				// Ensure the track has a track number.
-				if tr.TrackNumber == uint32(0) {
-					tr.TrackNumber = uint32(i + 1)
-				}
-				entry := fmt.Sprintf("%d. %s", tr.TrackNumber, tr.Title)
-				d, err := strconv.Atoi(tr.DurationMillis)
-				// If we parsed it we add duration to the entry line
-				if err == nil {
-					durration := durationString(time.Millisecond * time.Duration(d))
-					width := runewidth.StringWidth(entry + durration)
-					entry += getFillString(lineWidth, width, " ") + durration
-				}
-				// durationStr :=
-				t.tracksView.AddItem(entry, "", 0, nil)
-				t.albumListed[entry] = album
-				t.trackListed[entry] = tr
-			}
-		}
+		t.populateTracks(a)
 	})
 
 	// Some key overrides.
@@ -111,10 +73,52 @@ func createArtistList(t *TUI) *tview.List {
 			t.app.SetFocus(t.tracksView)
 			return nil
 		}
-		return event
+		return t.musicControl(event)
 	})
 
 	return artistList
+}
+
+func (t *TUI) populateTracks(a string) {
+	t.tracksView.Clear()
+	t.albumListed = make(map[string]*jamsonic.Album)
+	t.trackListed = make(map[string]*jamsonic.Track)
+	_, _, lineWidth, _ := t.tracksView.GetInnerRect()
+	artist := t.artistMap[a]
+	for _, album := range artist.Albums {
+		albumLine := fmt.Sprintf("~~~%s~~~", album.Name)
+
+		if album.Year != uint32(0) {
+			albumLine += "{" + strconv.Itoa(int(album.Year)) + "}"
+		}
+		// Fill the rest of the line with "~"
+		width := runewidth.StringWidth(albumLine)
+		if (lineWidth - width) > 0 {
+			albumLine += getFillString(lineWidth, width, "~")
+		}
+		t.albumListed[albumLine] = album
+		t.tracksView.AddItem(albumLine, "", 0, nil)
+		for i, tr := range album.Tracks {
+			// Ensure the track has a matching album name.
+			tr.Album = album.Name
+			// Ensure the track has a track number.
+			if tr.TrackNumber == uint32(0) {
+				tr.TrackNumber = uint32(i + 1)
+			}
+			entry := fmt.Sprintf("%d. %s", tr.TrackNumber, tr.Title)
+			d, err := strconv.Atoi(tr.DurationMillis)
+			// If we parsed it we add duration to the entry line
+			if err == nil {
+				durration := durationString(time.Millisecond * time.Duration(d))
+				width := runewidth.StringWidth(entry + durration)
+				entry += getFillString(lineWidth, width, " ") + durration
+			}
+			// durationStr :=
+			t.tracksView.AddItem(entry, "", 0, nil)
+			t.albumListed[entry] = album
+			t.trackListed[entry] = tr
+		}
+	}
 }
 
 func durationString(d time.Duration) string {
@@ -144,29 +148,35 @@ func createTrackList(tui *TUI) *tview.List {
 		tui.playTracks(index, a)
 	})
 
+	tracks.SetChangedFunc(func(index int, line string, _ string, _ rune) {
+		if line[0] == '~' {
+			tui.lastAlbum = line
+		}
+	})
+
 	tracks.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyTab {
 			tui.app.SetFocus(tui.artistView)
 			return nil
 		}
-		return event
+		return tui.musicControl(event)
 	})
 	return tracks
 }
 
-func (t *TUI) createLibraryPage() *tview.Flex {
+func (tui *TUI) createLibraryPage() *tview.Flex {
 
-	t.artistView = createArtistList(t)
-	t.tracksView = createTrackList(t)
+	tui.artistView = createArtistList(tui)
+	tui.tracksView = createTrackList(tui)
 
-	t.libraryView = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(t.artistView, 0, 1, true).
-		AddItem(t.tracksView, 0, 2, false)
+	tui.libraryView = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(tui.artistView, 0, 1, true).
+		AddItem(tui.tracksView, 0, 2, false)
 
-	t.populateArtists()
+	tui.populateArtists()
 
-	t.artistView.SetCurrentItem(0)
-	return t.libraryView
+	tui.artistView.SetCurrentItem(0)
+	return tui.libraryView
 }
 
 func (tui *TUI) playTracks(index int, entry string) {
@@ -176,7 +186,7 @@ func (tui *TUI) playTracks(index int, entry string) {
 		tui.player.Play()
 	} else {
 		tr := tui.trackListed[entry]
-		tracks := tui.albumListed[fmt.Sprintf("~~~%s~~~", tr.Album)].Tracks[int(tr.TrackNumber)-1:]
+		tracks := tui.albumListed[tui.lastAlbum].Tracks[int(tr.TrackNumber)-1:]
 		tui.player.CreatePlayQueue(tracks)
 		tui.player.Play()
 	}

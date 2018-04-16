@@ -53,6 +53,8 @@ type TUI struct {
 	artists   sort.StringSlice
 	artistMap map[string]*jamsonic.Artist
 
+	lastAlbum string
+
 	albumListed map[string]*jamsonic.Album
 	trackListed map[string]*jamsonic.Track
 }
@@ -92,33 +94,7 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 
 	// Register global key event handler.
 	tui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Rune() {
-		// Music control events.
-		case 'b':
-			tui.player.Next()
-			return nil
-		case 'v':
-			tui.player.Stop()
-			return nil
-		case 'c':
-			tui.player.Pause()
-			return nil
-		case 'x':
-			if tui.player.GetCurrentState() == jamsonic.Paused {
-				tui.player.Play()
-				return nil
-			}
-		case 'z':
-			tui.player.Previous()
-			return nil
-		}
-		switch event.Key() {
-		// Pages
-		case tcell.KeyCtrlN:
-			tui.currentPage = (tui.currentPage + 1) % 2
-			switchPage(tui, tui.currentPage)
-		}
-		return event
+		return tui.globalControl(event)
 	})
 
 	/// To be moved
@@ -139,6 +115,15 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 				}
 			}
 		}
+	}()
+
+	// Hack to redraw the tracks list after the app has started.
+	// Otherwise the line is not generated with right width.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		curr := tui.artistView.GetCurrentItem()
+		tui.populateTracks(tui.artists[curr])
+		tui.app.Draw()
 	}()
 
 	tui.app.SetRoot(flex, true).Run()
