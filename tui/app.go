@@ -34,31 +34,52 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TUI is the struct for the terminal UI.
 type TUI struct {
+	// Holds the id of the current page being displayed by the TUI.
 	currentPage int
-	app         *tview.Application
-	db          *storage.BoltDB
+	// The application struct.
+	app *tview.Application
+	// Interface to the storage.
+	db *storage.BoltDB
 
-	player        *jamsonic.Player
+	// The music player controller.
+	player *jamsonic.Player
+	// Current duration of the track being played. This value is updated
+	// by the callback function for the player.
 	trackDuration time.Duration
-	currentTrack  *jamsonic.Track
+	// Current track being played. The value is updated by the callback function.
+	currentTrack *jamsonic.Track
 
-	header      *tview.TextView
-	footer      *tview.TextView
-	pages       *tview.Pages
+	// The top section of the TUI. Displays current and available pages.
+	header *tview.TextView
+	// The bottom section of the TUI. Displays track duration and title.
+	// The content is updated by the callback function.
+	footer *tview.TextView
+	// Middle section of the TUI.
+	pages *tview.Pages
+	// The Library page. This page is split up in two parts. The artistView and tracksView
 	libraryView *tview.Flex
-	artistView  *tview.List
-	tracksView  *tview.List
+	// Displays a selectable list of all artists in the library.
+	artistView *tview.List
+	// Displays the tracks. List is dependent on which artist is selected in the artistView.
+	tracksView *tview.List
 
-	artists   sort.StringSlice
+	// artists is a sorted list of all artists. This list has the same order as what is displayed
+	// in the TUI. This slice can be used to find the artist if only the index is available.
+	artists sort.StringSlice
+	// artistMap maps the strings in the artists list to an artist struct. This is used to retrive
+	// the right struct when an item is selected in the TUI.
 	artistMap map[string]*jamsonic.Artist
 
-	lastAlbum string
-
+	// albumListed is used to track the album entries in the tracks list. Using the string line in
+	// the TUI list, the correct Album struct can be gotten.
 	albumListed map[string]*jamsonic.Album
+	// trackListed is used to map the track listing to the correct Track struct in the TUI track list.
 	trackListed map[string]*jamsonic.Track
 }
 
+// New returns a TUI object. This should only be called once.
 func New(db *storage.BoltDB, client jamsonic.Provider) {
 	tui := &TUI{
 		app:   tview.NewApplication(),
@@ -66,18 +87,19 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 		pages: tview.NewPages(),
 	}
 
-	pageLists := []string{"Library", "Settings"}
-
+	// Header
 	header := tview.NewTextView().SetRegions(true).SetWrap(false).SetDynamicColors(true)
 	header.SetBorder(true).SetTitle("Jamsonic")
 	header.Highlight("0")
 
 	tui.header = header
 
+	pageLists := []string{"Library", "Settings"}
 	for i, page := range pageLists {
 		fmt.Fprintf(header, `%d ["%d"][white]%s[white][""]  `, i+1, i, page)
 	}
 
+	// Footer
 	tui.footer = tview.NewTextView().SetRegions(true).SetWrap(false).SetDynamicColors(true)
 	tui.footer.SetBorder(true)
 	tui.drawFooter()
@@ -125,10 +147,13 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 		tui.populateTracks(tui.artists[curr])
 		tui.app.Draw()
 	}()
+	// End hack.
 
 	tui.app.SetRoot(flex, true).Run()
 }
 
+// drawFooter updates the footer with the latest information.
+// This is called by the player's callback function.
 func (tui *TUI) drawFooter() {
 	min := int(tui.trackDuration.Minutes())
 	secs := int(tui.trackDuration.Seconds()) % 60
