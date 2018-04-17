@@ -355,7 +355,7 @@ type StreamHandler interface {
 	// Play is called with an io.Reader for the track. The handler should decode the stream and
 	// send it to an output writer.
 	Play(io.Reader) error
-	// Stop is called by the Player to signal that all processing should stop. It is recommeded that
+	// Stop is called by the Player to signal that all processing should stop. It is recommended that
 	// output writers is closed when this is called.
 	Stop()
 	// Pause is called when stream processing should be paused.
