@@ -99,6 +99,8 @@ func (t *TUI) populateTracks(a string) {
 		t.albumListed[albumLine] = album
 		t.tracksView.AddItem(albumLine, "", 0, nil)
 		for i, tr := range album.Tracks {
+			// Ensure the track has a matching artist name.
+			tr.Artist = artist.Name
 			// Ensure the track has a matching album name.
 			tr.Album = album.Name
 			// Ensure the track has a track number.
@@ -186,8 +188,15 @@ func (tui *TUI) playTracks(index int, entry string) {
 		tui.player.Play()
 	} else {
 		tr := tui.trackListed[entry]
-		tracks := tui.albumListed[tui.lastAlbum].Tracks[int(tr.TrackNumber)-1:]
-		tui.player.CreatePlayQueue(tracks)
-		tui.player.Play()
+		artist := tui.artistMap[tr.Artist]
+		for _, alb := range artist.Albums {
+			if alb.Name != tr.Album {
+				continue
+			}
+			tracks := alb.Tracks[int(tr.TrackNumber)-1:]
+			tui.player.CreatePlayQueue(tracks)
+			tui.player.Play()
+			return
+		}
 	}
 }
