@@ -51,6 +51,8 @@ type TUI struct {
 	// Current track being played. The value is updated by the callback function.
 	currentTrack *jamsonic.Track
 
+	// The window object
+	window *tview.Flex
 	// The top section of the TUI. Displays current and available pages.
 	header *tview.TextView
 	// The bottom section of the TUI. Displays track duration and title.
@@ -80,7 +82,7 @@ type TUI struct {
 }
 
 // New returns a TUI object. This should only be called once.
-func New(db *storage.BoltDB, client jamsonic.Provider) {
+func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 	tui := &TUI{
 		app:   tview.NewApplication(),
 		db:    db,
@@ -105,7 +107,7 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 	tui.drawFooter()
 
 	// Layout
-	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+	tui.window = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tui.header, 3, 1, false).
 		AddItem(tui.pages, 0, 1, true).
 		AddItem(tui.footer, 3, 1, false)
@@ -121,20 +123,13 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 
 	/// To be moved
 	streamHandler := native.New()
-	callback := func(data *jamsonic.CallbackData) {
-		tui.trackDuration = data.Duration
-		tui.currentTrack = data.CurrentTrack
-		tui.drawFooter()
-	}
-	tui.player = jamsonic.NewPlayer(client, streamHandler, callback, 500)
+	tui.player = jamsonic.NewPlayer(client, streamHandler, tui.playerCallback, 500)
 	go func() {
 		err := tui.player.Error
 		for {
 			select {
 			case e := <-err:
-				if jamsonic.Debug {
-					log.Println("Player error:", e.Error())
-				}
+				log.Println("Player error:", e.Error())
 			}
 		}
 	}()
@@ -149,7 +144,12 @@ func New(db *storage.BoltDB, client jamsonic.Provider) {
 	}()
 	// End hack.
 
-	tui.app.SetRoot(flex, true).Run()
+	return tui
+}
+
+// Run starts the TUI application.
+func (tui *TUI) Run() error {
+	return tui.app.SetRoot(tui.window, true).Run()
 }
 
 // drawFooter updates the footer with the latest information.
@@ -164,6 +164,12 @@ func (tui *TUI) drawFooter() {
 	tui.footer.Clear()
 	fmt.Fprintf(tui.footer, "%02d:%02d / %s", min, secs, title)
 	tui.app.Draw()
+}
+
+func (tui *TUI) playerCallback(data *jamsonic.CallbackData) {
+	tui.trackDuration = data.Duration
+	tui.currentTrack = data.CurrentTrack
+	tui.drawFooter()
 }
 
 func switchPage(tui *TUI, page int) {

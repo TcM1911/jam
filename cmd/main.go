@@ -103,9 +103,10 @@ func main() {
 			log.Fatalln("Failed to sync the library with the SubSonic server:", err.Error())
 		}
 		if experimental {
-			// artists, _ := db.Artists()
-			//tui.DrawLibraryPage(artists, client)
-			tui.New(db, client)
+			ui := tui.New(db, client)
+			if err := ui.Run(); err != nil {
+				log.Println(err)
+			}
 		} else {
 			doUI(client, &lastfm.Client{}, "None", db)
 		}
