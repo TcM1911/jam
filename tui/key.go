@@ -9,6 +9,9 @@ import (
 // All pages that handles music control events should pass the event to this
 // function as part of SetInputCapture.
 func (tui *TUI) musicControl(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
 	switch event.Rune() {
 	// Music control events.
 	case 'b':
@@ -35,6 +38,9 @@ func (tui *TUI) musicControl(event *tcell.EventKey) *tcell.EventKey {
 // Global key controls which is handled by the application. Should use
 // Ctr combinations so typing in input boxes are not treated as events.
 func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
 	switch event.Key() {
 	// Switch to next page.
 	case tcell.KeyCtrlN:
@@ -46,6 +52,9 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 
 // vimBindings provides similar navigations to Vim.
 func (tui *TUI) vimBindings(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
 	current := tui.app.GetFocus()
 	list, ok := current.(*tview.List)
 	if !ok {
