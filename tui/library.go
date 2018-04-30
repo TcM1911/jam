@@ -80,8 +80,8 @@ func createArtistList(t *TUI) *tview.List {
 			t.app.SetFocus(t.tracksView)
 			return nil
 		}
-		// Also handle music control.
-		return t.musicControl(event)
+		// Also handle music control and VIM bindings.
+		return t.vimBindings(t.musicControl(event))
 	})
 
 	return artistList
@@ -185,8 +185,8 @@ func createTrackList(tui *TUI) *tview.List {
 			tui.app.SetFocus(tui.artistView)
 			return nil
 		}
-		// Handle music control input.
-		return tui.musicControl(event)
+		// Handle music control input and VIM bindings.
+		return tui.vimBindings(tui.musicControl(event))
 	})
 	return tracks
 }

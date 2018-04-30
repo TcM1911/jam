@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/TcM1911/jamsonic"
 	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
 )
 
 // All pages that handles music control events should pass the event to this
@@ -39,6 +40,28 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyCtrlN:
 		tui.currentPage = (tui.currentPage + 1) % 2
 		switchPage(tui, tui.currentPage)
+	}
+	return event
+}
+
+// vimBindings provides similar navigations to Vim.
+func (tui *TUI) vimBindings(event *tcell.EventKey) *tcell.EventKey {
+	current := tui.app.GetFocus()
+	list, ok := current.(*tview.List)
+	if !ok {
+		return event
+	}
+	switch event.Rune() {
+	case 'j':
+		return tcell.NewEventKey(tcell.KeyDown, 'j', tcell.ModNone)
+	case 'k':
+		return tcell.NewEventKey(tcell.KeyUp, 'k', tcell.ModNone)
+	case 'G':
+		list.SetCurrentItem(list.GetItemCount() - 1)
+		return nil
+	case 'g':
+		list.SetCurrentItem(0)
+		return nil
 	}
 	return event
 }
