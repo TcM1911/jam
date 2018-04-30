@@ -95,10 +95,10 @@
 			"revisionTime": "2018-03-14T08:05:35Z"
 		},
 		{
-			"checksumSHA1": "QW2kIXwhh1hKSGRosJHdM/O3ElM=",
+			"checksumSHA1": "81dhi90yjcZDEf/8PZuiC6EAkRE=",
 			"path": "github.com/rivo/tview",
-			"revision": "6b7d028eb165d0e9e79069a8b01e9152cb16e55b",
-			"revisionTime": "2018-04-14T16:56:18Z"
+			"revision": "f855bee0205c35e6a055b86cc341effea0f446ce",
+			"revisionTime": "2018-04-19T19:34:03Z"
 		},
 		{
 			"checksumSHA1": "eDQ6f1EsNf+frcRO/9XukSEchm8=",
