@@ -48,6 +48,7 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 		switchPage(tui, tui.currentPage)
 	case tcell.KeyEsc:
 		tui.player.Stop()
+		tui.player.Close()
 		tui.app.Stop()
 	}
 	return event
