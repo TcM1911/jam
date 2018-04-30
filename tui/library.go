@@ -80,6 +80,11 @@ func createArtistList(t *TUI) *tview.List {
 			t.app.SetFocus(t.tracksView)
 			return nil
 		}
+		// Handle when Enter is pressed on an artist
+		if event.Key() == tcell.KeyEnter {
+			t.playArtist(t.artists[t.artistView.GetCurrentItem()])
+			return nil
+		}
 		// Also handle music control and VIM bindings.
 		return t.vimBindings(t.musicControl(event))
 	})
@@ -219,6 +224,16 @@ func (tui *TUI) playTracks(index int, entry string) {
 		alb := tui.albumListed[entry]
 		// Select the track and the tracks after in the album.
 		tracks = alb.Tracks[int(tr.TrackNumber)-1:]
+	}
+	tui.player.CreatePlayQueue(tracks)
+	tui.player.Play()
+}
+
+// playArtist plays all songs for an artist.
+func (tui *TUI) playArtist(entry string) {
+	var tracks []*jamsonic.Track
+	for _, album := range tui.artistMap[entry].Albums {
+		tracks = append(tracks, album.Tracks...)
 	}
 	tui.player.CreatePlayQueue(tracks)
 	tui.player.Play()
