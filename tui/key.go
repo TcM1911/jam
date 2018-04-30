@@ -46,6 +46,9 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyCtrlN:
 		tui.currentPage = (tui.currentPage + 1) % 2
 		switchPage(tui, tui.currentPage)
+	case tcell.KeyEsc:
+		tui.player.Stop()
+		tui.app.Stop()
 	}
 	return event
 }
