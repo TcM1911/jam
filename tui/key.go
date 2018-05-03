@@ -15,21 +15,21 @@ func (tui *TUI) musicControl(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	// Music control events.
 	case 'b':
-		tui.player.Next()
+		nonUIBlockingCall(tui.player.Next)
 		return nil
 	case 'v':
-		tui.player.Stop()
+		nonUIBlockingCall(tui.player.Stop)
 		return nil
 	case 'c':
-		tui.player.Pause()
+		nonUIBlockingCall(tui.player.Pause)
 		return nil
 	case 'x':
 		if tui.player.GetCurrentState() == jamsonic.Paused {
-			tui.player.Play()
+			nonUIBlockingCall(tui.player.Play)
 			return nil
 		}
 	case 'z':
-		tui.player.Previous()
+		nonUIBlockingCall(tui.player.Previous)
 		return nil
 	}
 	return event
@@ -47,9 +47,19 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 		tui.currentPage = (tui.currentPage + 1) % 2
 		switchPage(tui, tui.currentPage)
 	case tcell.KeyEsc:
-		tui.player.Stop()
-		tui.player.Close()
-		tui.app.Stop()
+		// If shift Escape, it's a force quit so just exit
+		// don't try to clean up.
+		if event.Modifiers()&tcell.ModShift == 0 {
+			tui.app.Stop()
+			return nil
+		}
+		// Ensure it doesn't block incase closing streams blocks.
+		nonUIBlockingCall(func() {
+			tui.player.Stop()
+			tui.player.Close()
+			tui.app.Stop()
+		})
+		return nil
 	}
 	return event
 }
@@ -77,4 +87,12 @@ func (tui *TUI) vimBindings(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	return event
+}
+
+// nonUIBlockingCall wraps the call in a go routine. This can cause
+// go rutine leaks but it can also prevent the UI from locking.
+func nonUIBlockingCall(function func()) {
+	go func() {
+		function()
+	}()
 }

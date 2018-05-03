@@ -226,7 +226,7 @@ func (tui *TUI) playTracks(index int, entry string) {
 		tracks = alb.Tracks[int(tr.TrackNumber)-1:]
 	}
 	tui.player.CreatePlayQueue(tracks)
-	tui.player.Play()
+	nonUIBlockingCall(tui.player.Play)
 }
 
 // playArtist plays all songs for an artist.
@@ -236,5 +236,5 @@ func (tui *TUI) playArtist(entry string) {
 		tracks = append(tracks, album.Tracks...)
 	}
 	tui.player.CreatePlayQueue(tracks)
-	tui.player.Play()
+	nonUIBlockingCall(tui.player.Play)
 }
