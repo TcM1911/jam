@@ -20,5 +20,15 @@
 
 package jamsonic
 
+import (
+	"time"
+)
+
 var Experimental = false
 var Debug = false
+
+// BufferingWait is the time in milliseconds to wait on reading from the network socket
+// before playing the track. If this is to low, an EOF can be returned when reading
+// from the memory buffer causing the track from being skipped.
+// Default value is 200 ms.
+var BufferingWait = time.Duration(200 * time.Millisecond)
