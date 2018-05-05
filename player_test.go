@@ -23,6 +23,8 @@ package jamsonic
 import (
 	"errors"
 	"io"
+	"io/ioutil"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,15 +32,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	track1Content = "Song content 1"
+	track2Content = "Song content 2"
+	track3Content = "Song content 3"
+	track4Content = "Song content 4"
+)
+
+var tracks = []*Track{
+	&Track{ID: "1"},
+	&Track{ID: "2"},
+	&Track{ID: "3"},
+	&Track{ID: "4"},
+}
+
 func TestPlayControl(t *testing.T) {
 	assert := assert.New(t)
 	player, _, _, _ := getPlayer()
-	tracks := []*Track{
-		&Track{ID: "1"},
-		&Track{ID: "2"},
-		&Track{ID: "3"},
-		&Track{ID: "4"},
-	}
 	player.CreatePlayQueue(tracks)
 
 	t.Run("get state", func(t *testing.T) {
@@ -74,6 +84,11 @@ func TestPlayControl(t *testing.T) {
 
 	t.Run("Stopping", func(t *testing.T) {
 		p, _, provider, handler := getPlayer()
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
 		p.CreatePlayQueue(tracks)
 
 		// At stop nothing should happen.
@@ -110,11 +125,17 @@ func TestPlayControl(t *testing.T) {
 		assert.Nil(p.CurrentTrack(), "Current track should be nil.")
 		assert.Equal(tracks[0], p.NextTrack(), "1st track should be marked as next")
 
+		assert.NoError(err)
 		p.Close()
 	})
 
 	t.Run("Playing", func(t *testing.T) {
 		p, finished, provider, handler := getPlayer()
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
 		p.CreatePlayQueue(tracks)
 		p.Play()
 		time.Sleep(time.Millisecond * 200)
@@ -182,11 +203,17 @@ func TestPlayControl(t *testing.T) {
 		assert.Nil(p.NextTrack(), "Nil should be returned for next track")
 		assert.Equal(tracks[3], p.played.nextSong(), "4th track should be first in the played list")
 
+		assert.NoError(err)
 		p.Close()
 	})
 
 	t.Run("Pausing", func(t *testing.T) {
 		p, _, provider, handler := getPlayer()
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
 		p.CreatePlayQueue(tracks)
 		p.Play()
 
@@ -252,11 +279,17 @@ func TestPlayControl(t *testing.T) {
 		assert.Equal(tracks[0], p.CurrentTrack(), "First track not playing")
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 
+		assert.NoError(err)
 		p.Close()
 	})
 
 	t.Run("Song skipping", func(t *testing.T) {
 		p, _, provider, handler := getPlayer()
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
 		p.CreatePlayQueue(tracks)
 
 		// Skipping during stopped shouldn't do anything.
@@ -317,11 +350,17 @@ func TestPlayControl(t *testing.T) {
 		assert.Equal(tracks[3], p.NextTrack(), "4th track should be marked as next")
 		assert.Equal(tracks[1], p.played.nextSong(), "2nd track should be first in the played list")
 
+		assert.NoError(err)
 		p.Close()
 	})
 
 	t.Run("Song reverse skipping", func(t *testing.T) {
 		p, _, provider, handler := getPlayer()
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
 		p.CreatePlayQueue(tracks)
 
 		// Skipping back during stopped shouldn't do anything.
@@ -376,6 +415,7 @@ func TestPlayControl(t *testing.T) {
 		assert.Equal(tracks[1], p.NextTrack(), "2nd track should be marked as next")
 		assert.Nil(p.played.nextSong(), "Nil should be returned for played.")
 
+		assert.NoError(err)
 		p.Close()
 	})
 
@@ -479,6 +519,115 @@ func TestPlayControl(t *testing.T) {
 	})
 }
 
+func TestStreamBuffering(t *testing.T) {
+	assert := assert.New(t)
+
+	finishedChan := make(chan struct{})
+	provider := &mockProvider{
+		doGetStream: func(id string) (io.ReadCloser, error) {
+			return &recorder{streamID: id}, nil
+		},
+	}
+
+	t.Run("Can_read", func(t *testing.T) {
+		var trackStreamMu sync.Mutex
+		var trackStream io.Reader
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay: func(r io.Reader) error {
+				trackStreamMu.Lock()
+				defer trackStreamMu.Unlock()
+				trackStream = r
+				return nil
+			},
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
+		p.CreatePlayQueue(tracks)
+		p.Play()
+		time.Sleep(time.Millisecond * 70)
+		trackStreamMu.Lock()
+		content, err := ioutil.ReadAll(trackStream)
+		trackStreamMu.Unlock()
+
+		assert.NoError(err, "Should read without error")
+		assert.Equal(track1Content, string(content), "Wrong track content")
+
+		p.Close()
+	})
+
+	t.Run("Create_new_buffer_if_still_copying", func(t *testing.T) {
+		var trackStreamMu sync.Mutex
+		var trackStream io.Reader
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay: func(r io.Reader) error {
+				trackStreamMu.Lock()
+				defer trackStreamMu.Unlock()
+				trackStream = r
+				return nil
+			},
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+
+		// Catch error
+		var err error
+		go func() {
+			err = <-p.Error
+		}()
+		p.CreatePlayQueue(tracks)
+		p.Play()
+		time.Sleep(time.Millisecond * 10)
+		p.Next()
+		time.Sleep(time.Millisecond * 100)
+		trackStreamMu.Lock()
+		content, err := ioutil.ReadAll(trackStream)
+		trackStreamMu.Unlock()
+
+		assert.NoError(err, "Should read without error")
+		assert.Equal(track2Content, string(content), "Wrong track content")
+
+		p.Close()
+	})
+
+	t.Run("Handle errors when stream copying", func(t *testing.T) {
+		finishedChan := make(chan struct{})
+		expectedError := errors.New("expected error")
+		provider := &mockProvider{
+			doGetStream: func(id string) (io.ReadCloser, error) {
+				return &recorder{streamID: expectedError.Error()}, nil
+			},
+		}
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay:     func(io.Reader) error { return nil },
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+		p.CreatePlayQueue(tracks)
+
+		p.Play()
+		err := <-p.Error
+		assert.Equal(expectedError.Error(), err.Error(), "Returned wrong error")
+		assert.Equal(tracks[0], p.CurrentTrack(), "Wrong track set as next")
+
+		p.Close()
+	})
+}
+
 func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 	finishedChan := make(chan struct{})
 
@@ -499,10 +648,48 @@ func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 
 type recorder struct {
 	streamID string
+	read1    bool
+	read2    bool
+	read3    bool
+	read4    bool
 }
 
-func (r *recorder) Read([]byte) (int, error) {
-	return 0, nil
+func (r *recorder) Read(b []byte) (int, error) {
+	// Delay read so we can simulate a read from a socket.
+	time.Sleep(time.Millisecond * 50)
+	var reader *strings.Reader
+	if r.streamID == "1" {
+		if r.read1 {
+			return 0, io.EOF
+		}
+		r.read1 = true
+		reader = strings.NewReader(track1Content)
+	}
+	if r.streamID == "2" {
+		if r.read2 {
+			return 0, io.EOF
+		}
+		r.read2 = true
+		reader = strings.NewReader(track2Content)
+	}
+	if r.streamID == "3" {
+		if r.read3 {
+			return 0, io.EOF
+		}
+		r.read3 = true
+		reader = strings.NewReader(track3Content)
+	}
+	if r.streamID == "4" {
+		if r.read4 {
+			return 0, io.EOF
+		}
+		r.read4 = true
+		reader = strings.NewReader(track4Content)
+	}
+	if r.streamID == "expected error" {
+		return 0, errors.New("expected error")
+	}
+	return reader.Read(b)
 }
 
 func (r *recorder) Close() error {
@@ -530,28 +717,28 @@ func (m *mockStreaHandler) Finished() <-chan struct{} {
 func (m *mockStreaHandler) Play(r io.Reader) error {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledPlay += 1
+	m.calledPlay++
 	return m.doPlay(r)
 }
 
 func (m *mockStreaHandler) Stop() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledStopped += 1
+	m.calledStopped++
 	m.doStop()
 }
 
 func (m *mockStreaHandler) Pause() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledPause += 1
+	m.calledPause++
 	m.doPause()
 }
 
 func (m *mockStreaHandler) Continue() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledContrinue += 1
+	m.calledContrinue++
 	m.doContinue()
 }
 
