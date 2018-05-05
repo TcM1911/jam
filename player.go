@@ -21,6 +21,7 @@
 package jamsonic
 
 import (
+	"bytes"
 	"io"
 	"sync"
 	"time"
@@ -59,7 +60,11 @@ func NewPlayer(p Provider, h StreamHandler, callback func(*CallbackData), interv
 		prevChan:         make(chan struct{}),
 		stopChan:         make(chan struct{}),
 		played:           &playqueue{array: make([]*Track, 0)},
+		buffer:           newBufReadWriter(),
 	}
+	player.buffer.bufferedMu.Lock()
+	player.buffer.buffered = true
+	player.buffer.bufferedMu.Unlock()
 	go player.playerLoop()
 	return player
 }
@@ -86,7 +91,6 @@ type Player struct {
 	queueMu          sync.RWMutex
 	currentTrack     *Track
 	currentTrackMu   sync.RWMutex
-	currentStream    io.ReadCloser
 	state            State
 	stateMu          sync.RWMutex
 	playChan         chan struct{}
@@ -95,6 +99,8 @@ type Player struct {
 	nextChan         chan struct{}
 	prevChan         chan struct{}
 	closeChan        chan struct{}
+	bufMu            sync.Mutex
+	buffer           *bufReadWriter
 }
 
 // Play starts or resumes playing the track first in the play queue.
@@ -261,27 +267,50 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 	p.updateCurrentTrack(ct)
 	p.queueMu.Unlock()
 
-	// Save old stream so we can close it.
-	oldStream := p.currentStream
-
 	stream, err := p.provider.GetStream(ct.ID)
-	p.currentStream = stream
 	if err != nil {
 		handleStreamError(p, err)
+		return
 	}
-	err = p.handler.Play(stream)
+	// If buffered, just reset and reuse the buffer.
+	p.buffer.bufferedMu.Lock()
+	p.bufMu.Lock()
+	tmp := p.buffer
+	if p.buffer.buffered {
+		p.buffer.Reset()
+	} else {
+		// Since we can't stop to copy, create a new buffer
+		// and let the GC clean up the old buffer.
+		p.buffer = newBufReadWriter()
+	}
+	p.bufMu.Unlock()
+	tmp.bufferedMu.Unlock()
+
+	go func() {
+		p.bufMu.Lock()
+		writer := p.buffer
+		p.bufMu.Unlock()
+		_, err := io.Copy(writer, stream)
+		defer stream.Close()
+		if err != nil {
+			p.Error <- err
+			return
+		}
+		writer.bufferedMu.Lock()
+		writer.buffered = true
+		writer.bufferedMu.Unlock()
+	}()
+	p.bufMu.Lock()
+	reader := p.buffer
+	p.bufMu.Unlock()
+	err = p.handler.Play(reader)
 	if err != nil {
 		handleStreamError(p, err)
-	}
-	if oldStream != nil {
-		oldStream.Close()
 	}
 }
 
 func (p *Player) stopPlaying() {
 	p.handler.Stop()
-	p.currentStream.Close()
-	p.currentStream = nil
 	p.updateCurrentTrack(nil)
 	p.changeState(Stopped)
 }
@@ -303,9 +332,6 @@ func handleStreamError(p *Player, err error) {
 	p.queueMu.Lock()
 	p.queue.pushSong(p.CurrentTrack())
 	p.queueMu.Unlock()
-	if p.currentStream != nil {
-		p.currentStream.Close()
-	}
 }
 
 type playqueue struct {
@@ -362,4 +388,35 @@ type StreamHandler interface {
 	Pause()
 	// Continue is called when stream processing should be resumed after it has been paused.
 	Continue()
+}
+
+type bufReadWriter struct {
+	mu         sync.Mutex
+	buf        *bytes.Buffer
+	bufferedMu sync.Mutex
+	buffered   bool
+}
+
+func newBufReadWriter() *bufReadWriter {
+	buf := new(bytes.Buffer)
+	return &bufReadWriter{buf: buf}
+}
+
+func (b *bufReadWriter) Read(a []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Read(a)
+}
+
+func (b *bufReadWriter) Write(a []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(a)
+}
+
+func (b *bufReadWriter) Reset() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf.Reset()
+	b.buffered = false
 }
