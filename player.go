@@ -22,6 +22,7 @@ package jamsonic
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -37,6 +38,12 @@ const (
 	Playing
 	// Paused is the state when the player has been paused.
 	Paused
+)
+
+var (
+	// ErrNoNextTrack is returned when the playing queue does not have a track to play
+	// but is asked to play one.
+	ErrNoNextTrack = errors.New("no track in playing queue")
 )
 
 // NewPlayer returns a new Player. The Provider should be a music provider.
@@ -217,7 +224,12 @@ func (p *Player) playerLoop() {
 			if ct != nil {
 				p.played.pushSong(ct)
 			}
-			p.playNextInQueue(p.queue.popSong)
+			err := p.playNextInQueue(p.queue.popSong)
+			if err == ErrNoNextTrack {
+				// If no next track, keep playing the current.
+				p.Error <- err
+				continue
+			}
 			songStart = time.Now()
 			pausedDuration = time.Duration(0)
 		case <-p.prevChan:
@@ -264,16 +276,19 @@ func (p *Player) playerLoop() {
 	}
 }
 
-func (p *Player) playNextInQueue(getTrack func() *Track) {
+func (p *Player) playNextInQueue(getTrack func() *Track) error {
 	p.queueMu.Lock()
 	ct := getTrack()
-	p.updateCurrentTrack(ct)
 	p.queueMu.Unlock()
+	if ct == nil {
+		return ErrNoNextTrack
+	}
+	p.updateCurrentTrack(ct)
 
 	stream, err := p.provider.GetStream(ct.ID)
 	if err != nil {
 		handleStreamError(p, err)
-		return
+		return nil
 	}
 	// Ensure we have control of this pointer.
 	p.bufMu.Lock()
@@ -315,6 +330,7 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 	if err != nil {
 		handleStreamError(p, err)
 	}
+	return nil
 }
 
 func (p *Player) stopPlaying() {
@@ -360,6 +376,10 @@ func (q *playqueue) nextSong() *Track {
 // popSong returns the next song in the play queue and removes it from the queue.
 func (q *playqueue) popSong() *Track {
 	track := q.nextSong()
+	// If no next song, return nil
+	if track == nil {
+		return nil
+	}
 	q.arrayMu.Lock()
 	defer q.arrayMu.Unlock()
 	tmp := make([]*Track, len(q.array)-1)
