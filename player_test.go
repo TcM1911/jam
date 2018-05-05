@@ -46,6 +46,11 @@ var tracks = []*Track{
 	&Track{ID: "4"},
 }
 
+func init() {
+	// Set to 0 since it's not needed for testing.
+	BufferingWait = time.Duration(0)
+}
+
 func TestPlayControl(t *testing.T) {
 	assert := assert.New(t)
 	player, _, _, _ := getPlayer()
@@ -626,6 +631,48 @@ func TestStreamBuffering(t *testing.T) {
 
 		p.Close()
 	})
+
+	t.Run("Handle errors when closing stream", func(t *testing.T) {
+		finishedChan := make(chan struct{})
+		expectedError := errors.New("expected error")
+		provider := &mockProvider{
+			doGetStream: func(id string) (io.ReadCloser, error) {
+				return &recorder{streamID: id, closeErr: expectedError}, nil
+			},
+		}
+		handler := &mockStreaHandler{
+			doFinished: func() <-chan struct{} { return finishedChan },
+			doPlay:     func(io.Reader) error { return nil },
+			doStop:     func() {},
+			doPause:    func() {},
+			doContinue: func() {},
+		}
+		p := NewPlayer(provider, handler, nil, 0)
+		p.CreatePlayQueue(tracks)
+
+		p.Play()
+		err := <-p.Error
+		assert.Equal(expectedError.Error(), err.Error(), "Returned wrong error")
+		assert.Equal(tracks[0], p.CurrentTrack(), "Wrong track set as next")
+
+		p.Close()
+	})
+}
+
+func TestQueue(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Run("no panic if skipping past end return error", func(t *testing.T) {
+		p, _, _, _ := getPlayer()
+		p.CreatePlayQueue(tracks)
+		p.Play()
+		p.Next()
+		p.Next()
+		p.Next()
+		p.Next()
+		err := <-p.Error
+		assert.Equal(ErrNoNextTrack, err, "Wrong error returned")
+	})
 }
 
 func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
@@ -652,6 +699,7 @@ type recorder struct {
 	read2    bool
 	read3    bool
 	read4    bool
+	closeErr error
 }
 
 func (r *recorder) Read(b []byte) (int, error) {
@@ -693,6 +741,9 @@ func (r *recorder) Read(b []byte) (int, error) {
 }
 
 func (r *recorder) Close() error {
+	if r.closeErr != nil {
+		return r.closeErr
+	}
 	return nil
 }
 
