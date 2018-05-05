@@ -717,28 +717,28 @@ func (m *mockStreaHandler) Finished() <-chan struct{} {
 func (m *mockStreaHandler) Play(r io.Reader) error {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledPlay += 1
+	m.calledPlay++
 	return m.doPlay(r)
 }
 
 func (m *mockStreaHandler) Stop() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledStopped += 1
+	m.calledStopped++
 	m.doStop()
 }
 
 func (m *mockStreaHandler) Pause() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledPause += 1
+	m.calledPause++
 	m.doPause()
 }
 
 func (m *mockStreaHandler) Continue() {
 	calledMu.Lock()
 	defer calledMu.Unlock()
-	m.calledContrinue += 1
+	m.calledContrinue++
 	m.doContinue()
 }
 
