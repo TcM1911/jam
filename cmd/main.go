@@ -35,7 +35,6 @@ import (
 	"github.com/TcM1911/jamsonic/storage"
 	"github.com/TcM1911/jamsonic/subsonic"
 	"github.com/TcM1911/jamsonic/ui"
-	"github.com/TcM1911/jamsonic/version"
 )
 
 const (
@@ -60,7 +59,7 @@ func init() {
 	flag.BoolVar(&experimental, "experimental", false, "Use experimental features")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.Version))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, jamsonic.Version))
 		flag.PrintDefaults()
 	}
 
@@ -74,7 +73,7 @@ func init() {
 	}
 
 	if vers {
-		fmt.Printf("%s\n", version.Version)
+		fmt.Printf("%s\n", jamsonic.Version)
 		os.Exit(0)
 	}
 }

@@ -1,7 +1,7 @@
 APP = jamsonic
 
 VERSION=$(shell \
-        grep "const Version" version/version.go \
+        grep "const Version" version.go \
         |awk -F'=' '{print $$2}' \
         |sed -e "s/[^0-9.]//g" \
 	|sed -e "s/ //g")

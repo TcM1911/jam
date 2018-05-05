@@ -21,6 +21,7 @@
 package jamsonic
 
 import (
+	"bytes"
 	"io"
 	"sync"
 	"time"
@@ -59,7 +60,13 @@ func NewPlayer(p Provider, h StreamHandler, callback func(*CallbackData), interv
 		prevChan:         make(chan struct{}),
 		stopChan:         make(chan struct{}),
 		played:           &playqueue{array: make([]*Track, 0)},
+		buffer:           newBufReadWriter(),
 	}
+	// Since know the buffer doesn't have any current writes to it,
+	// set buffered to true so we don't allocate a new buffer.
+	player.buffer.bufferedMu.Lock()
+	player.buffer.buffered = true
+	player.buffer.bufferedMu.Unlock()
 	go player.playerLoop()
 	return player
 }
@@ -86,7 +93,6 @@ type Player struct {
 	queueMu          sync.RWMutex
 	currentTrack     *Track
 	currentTrackMu   sync.RWMutex
-	currentStream    io.ReadCloser
 	state            State
 	stateMu          sync.RWMutex
 	playChan         chan struct{}
@@ -95,6 +101,9 @@ type Player struct {
 	nextChan         chan struct{}
 	prevChan         chan struct{}
 	closeChan        chan struct{}
+	// bufMu protects the buffer pointer from being manipulated by multiple go routines.
+	bufMu  sync.Mutex
+	buffer *bufReadWriter
 }
 
 // Play starts or resumes playing the track first in the play queue.
@@ -261,27 +270,55 @@ func (p *Player) playNextInQueue(getTrack func() *Track) {
 	p.updateCurrentTrack(ct)
 	p.queueMu.Unlock()
 
-	// Save old stream so we can close it.
-	oldStream := p.currentStream
-
 	stream, err := p.provider.GetStream(ct.ID)
-	p.currentStream = stream
 	if err != nil {
 		handleStreamError(p, err)
+		return
 	}
-	err = p.handler.Play(stream)
+	// Ensure we have control of this pointer.
+	p.bufMu.Lock()
+	tmp := p.buffer
+	// If buffered, just reset and reuse the buffer.
+	tmp.bufferedMu.Lock()
+	if tmp.buffered {
+		tmp.Reset()
+	} else {
+		// Since we can't stop to copy, create a new buffer
+		// and let the GC clean up the old buffer.
+		p.buffer = newBufReadWriter()
+	}
+	tmp.bufferedMu.Unlock()
+	p.bufMu.Unlock()
+
+	// Get the track data off the wire and into a memory buffer.
+	go func() {
+		p.bufMu.Lock()
+		writer := p.buffer
+		p.bufMu.Unlock()
+		_, cpErr := io.Copy(writer, stream)
+		if cpErr != nil {
+			p.Error <- cpErr
+			return
+		}
+		writer.bufferedMu.Lock()
+		writer.buffered = true
+		writer.bufferedMu.Unlock()
+		closeErr := stream.Close()
+		if closeErr != nil {
+			p.Error <- closeErr
+		}
+	}()
+	p.bufMu.Lock()
+	reader := p.buffer
+	p.bufMu.Unlock()
+	err = p.handler.Play(reader)
 	if err != nil {
 		handleStreamError(p, err)
-	}
-	if oldStream != nil {
-		oldStream.Close()
 	}
 }
 
 func (p *Player) stopPlaying() {
 	p.handler.Stop()
-	p.currentStream.Close()
-	p.currentStream = nil
 	p.updateCurrentTrack(nil)
 	p.changeState(Stopped)
 }
@@ -303,9 +340,6 @@ func handleStreamError(p *Player, err error) {
 	p.queueMu.Lock()
 	p.queue.pushSong(p.CurrentTrack())
 	p.queueMu.Unlock()
-	if p.currentStream != nil {
-		p.currentStream.Close()
-	}
 }
 
 type playqueue struct {
@@ -355,11 +389,55 @@ type StreamHandler interface {
 	// Play is called with an io.Reader for the track. The handler should decode the stream and
 	// send it to an output writer.
 	Play(io.Reader) error
-	// Stop is called by the Player to signal that all processing should stop. It is recommeded that
+	// Stop is called by the Player to signal that all processing should stop. It is recommended that
 	// output writers is closed when this is called.
 	Stop()
 	// Pause is called when stream processing should be paused.
 	Pause()
 	// Continue is called when stream processing should be resumed after it has been paused.
 	Continue()
+}
+
+// bufReadWriter is a buffer that is "thread safe". Tracks are read in and stored in memory buffer.
+// The stream handler reads from this buffer as it plays the track.
+type bufReadWriter struct {
+	// Mutex for the bytes buffer. This is used to ensure only one go routine is either
+	// reading from or writing to the buffer at a time.
+	mu sync.Mutex
+	// Buffer that holds the data.
+	buf *bytes.Buffer
+	// Mutex to ensure the buffered bool is only touched by one routine at a time.
+	bufferedMu sync.Mutex
+	// buffered is set to true when all data has been written to the buffer.
+	// This is used as an indicator to signal that the buffer can be reused for a new stream.
+	// If this is false, the buffer can't be reused as it still might have writes happening to it.
+	buffered bool
+}
+
+// newBufReadWriter creates a new buffer.
+func newBufReadWriter() *bufReadWriter {
+	buf := new(bytes.Buffer)
+	return &bufReadWriter{buf: buf}
+}
+
+// Read returns at most len(a) from the memory buffer.
+func (b *bufReadWriter) Read(a []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Read(a)
+}
+
+// Write adds the bytes to the buffer.
+func (b *bufReadWriter) Write(a []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(a)
+}
+
+// Reset empties the buffer so it can be reused for new content.
+func (b *bufReadWriter) Reset() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf.Reset()
+	b.buffered = false
 }
