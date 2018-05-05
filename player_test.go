@@ -46,6 +46,11 @@ var tracks = []*Track{
 	&Track{ID: "4"},
 }
 
+func init() {
+	// Set to 0 since it's not needed for testing.
+	BufferingWait = time.Duration(0)
+}
+
 func TestPlayControl(t *testing.T) {
 	assert := assert.New(t)
 	player, _, _, _ := getPlayer()

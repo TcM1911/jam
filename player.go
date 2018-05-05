@@ -292,41 +292,37 @@ func (p *Player) playNextInQueue(getTrack func() *Track) error {
 	}
 	// Ensure we have control of this pointer.
 	p.bufMu.Lock()
-	tmp := p.buffer
 	// If buffered, just reset and reuse the buffer.
-	tmp.bufferedMu.Lock()
-	if tmp.buffered {
-		tmp.Reset()
+	p.buffer.bufferedMu.Lock()
+	if p.buffer.buffered {
+		p.buffer.Reset()
+		p.buffer.bufferedMu.Unlock()
 	} else {
 		// Since we can't stop to copy, create a new buffer
 		// and let the GC clean up the old buffer.
+		p.buffer.bufferedMu.Unlock()
 		p.buffer = newBufReadWriter()
 	}
-	tmp.bufferedMu.Unlock()
+	buf := p.buffer
 	p.bufMu.Unlock()
 
 	// Get the track data off the wire and into a memory buffer.
 	go func() {
-		p.bufMu.Lock()
-		writer := p.buffer
-		p.bufMu.Unlock()
-		_, cpErr := io.Copy(writer, stream)
+		_, cpErr := io.Copy(buf, stream)
 		if cpErr != nil {
 			p.Error <- cpErr
 			return
 		}
-		writer.bufferedMu.Lock()
-		writer.buffered = true
-		writer.bufferedMu.Unlock()
+		buf.bufferedMu.Lock()
+		buf.buffered = true
+		buf.bufferedMu.Unlock()
 		closeErr := stream.Close()
 		if closeErr != nil {
 			p.Error <- closeErr
 		}
 	}()
-	p.bufMu.Lock()
-	reader := p.buffer
-	p.bufMu.Unlock()
-	err = p.handler.Play(reader)
+	time.Sleep(BufferingWait)
+	err = p.handler.Play(buf)
 	if err != nil {
 		handleStreamError(p, err)
 	}
