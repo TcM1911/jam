@@ -195,6 +195,9 @@ func (p *Player) playerLoop() {
 				pausedDuration = pausedDuration + time.Since(pauseTimer)
 				continue
 			}
+			if status == Playing {
+				p.handler.Stop()
+			}
 			p.playNextInQueue(p.queue.popSong)
 			songStart = time.Now()
 			pausedDuration = time.Duration(0)
@@ -223,6 +226,7 @@ func (p *Player) playerLoop() {
 			ct := p.CurrentTrack()
 			if ct != nil {
 				p.played.pushSong(ct)
+				p.handler.Stop()
 			}
 			err := p.playNextInQueue(p.queue.popSong)
 			if err == ErrNoNextTrack {
@@ -241,6 +245,7 @@ func (p *Player) playerLoop() {
 				continue
 			}
 			p.queue.pushSong(p.CurrentTrack())
+			p.handler.Stop()
 			p.playNextInQueue(p.played.popSong)
 			songStart = time.Now()
 			pausedDuration = time.Duration(0)
