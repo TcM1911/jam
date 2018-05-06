@@ -79,6 +79,9 @@ type TUI struct {
 	albumListed map[string]*jamsonic.Album
 	// trackListed is used to map the track listing to the correct Track struct in the TUI track list.
 	trackListed map[string]*jamsonic.Track
+
+	// settingsList is the menu list with all settings categories.
+	settingsList *tview.List
 }
 
 // New returns a TUI object. This should only be called once.
