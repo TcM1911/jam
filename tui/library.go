@@ -238,3 +238,13 @@ func (tui *TUI) playArtist(entry string) {
 	tui.player.CreatePlayQueue(tracks)
 	nonUIBlockingCall(tui.player.Play)
 }
+
+// Updates the library and refreshes the UI.
+func updateLibrary(tui *TUI) {
+	err := jamsonic.RefreshLibrary(tui.db, tui.provider)
+	if err != nil {
+		tui.player.Error <- err
+		return
+	}
+	tui.populateArtists()
+}

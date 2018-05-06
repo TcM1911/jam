@@ -43,6 +43,9 @@ type TUI struct {
 	// Interface to the storage.
 	db *storage.BoltDB
 
+	// Provider of music
+	provider jamsonic.Provider
+
 	// The music player controller.
 	player *jamsonic.Player
 	// Current duration of the track being played. This value is updated
@@ -136,6 +139,7 @@ func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 			}
 		}
 	}()
+	tui.provider = client
 
 	// Hack to redraw the tracks list after the app has started.
 	// Otherwise the line is not generated with right width.

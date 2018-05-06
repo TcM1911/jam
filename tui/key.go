@@ -60,6 +60,11 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 			tui.app.Stop()
 		})
 		return nil
+	case tcell.KeyCtrlU:
+		nonUIBlockingCall(func() {
+			updateLibrary(tui)
+		})
+		return nil
 	}
 	return event
 }
