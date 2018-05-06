@@ -121,6 +121,7 @@ func (c *Client) FetchLibrary() ([]*jamsonic.Artist, error) {
 func getArtistSongs(c *Client, ajob <-chan *artist, result chan<- *jamsonic.Artist, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for a := range ajob {
+		log.Println("Downloading tracks for", a.Name)
 		albumRes, err := getArtistAlbums(c, a.ID)
 		albums := make([]*jamsonic.Album, len(albumRes))
 		if err != nil {
