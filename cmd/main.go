@@ -48,6 +48,7 @@ var (
 	lastFM       bool
 	useGPM       bool
 	experimental bool
+	legacy       bool
 )
 
 func init() {
@@ -57,6 +58,7 @@ func init() {
 	flag.BoolVar(&lastFM, "lastfm", false, "Enable LastFM scrobbler")
 	flag.BoolVar(&useGPM, "googlemusic", false, "Use Google Play Music")
 	flag.BoolVar(&experimental, "experimental", false, "Use experimental features")
+	flag.BoolVar(&legacy, "legacy", false, "Use legacy features")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, jamsonic.Version))
@@ -70,6 +72,9 @@ func init() {
 	}
 	if debug {
 		jamsonic.Debug = true
+	}
+	if debug {
+		jamsonic.Legacy = true
 	}
 
 	if vers {
@@ -101,7 +106,7 @@ func main() {
 		if err != nil {
 			log.Fatalln("Failed to sync the library with the SubSonic server:", err.Error())
 		}
-		if experimental {
+		if !legacy {
 			ui := tui.New(db, client)
 			if err := ui.Run(); err != nil {
 				log.Println(err)
