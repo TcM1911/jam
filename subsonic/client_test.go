@@ -36,7 +36,7 @@ import (
 
 func TestHost(t *testing.T) {
 	expectedString := "expectedString"
-	c := &Client{credentials: credentials{Host: expectedString}}
+	c := &Client{Credentials: Credentials{Host: expectedString}}
 	assert.Equal(t, expectedString, c.Host(), "Wrong value returned.")
 }
 
@@ -52,8 +52,8 @@ func TestNewClient(t *testing.T) {
 		buf, _ := json.Marshal(&data)
 		w.Write(buf)
 	}))
-	expectedCreds := credentials{Host: ts.URL, Salt: "salt", Token: "token", Username: "un"}
-	expectedClient := Client{credentials: expectedCreds}
+	expectedCreds := Credentials{Host: ts.URL, Salt: "salt", Token: "token", Username: "un"}
+	expectedClient := Client{Credentials: expectedCreds}
 
 	// Tests
 	t.Run("stored_credentials", func(t *testing.T) {

@@ -47,7 +47,7 @@ func TestGetStream(t *testing.T) {
 			return
 		}
 	}))
-	c := &Client{credentials: credentials{
+	c := &Client{Credentials: Credentials{
 		Username: "username",
 		Host:     ts.URL,
 	},
@@ -66,7 +66,7 @@ func TestGetStream(t *testing.T) {
 		assert.Equal(stream, actual, "Wrong stream returned.")
 	})
 	t.Run("request_error", func(t *testing.T) {
-		c.credentials.Host = "http://localhost:-8080"
+		c.Credentials.Host = "http://localhost:-8080"
 		b, err := c.GetStream("empty")
 		assert.Error(err, "Should return an error")
 		assert.Nil(b, "No reader should be returned if it's empty")
@@ -160,7 +160,7 @@ func TestFetchLibrary(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte{0x0, 0x1})
 	}))
-	c := &Client{credentials: credentials{
+	c := &Client{Credentials: Credentials{
 		Username: "username",
 		Host:     ts.URL,
 	},
@@ -193,7 +193,7 @@ func TestFetchLibrary(t *testing.T) {
 
 	})
 	t.Run("handle_hard_fail", func(t *testing.T) {
-		c.credentials.Host = "http://localhost:-8080"
+		c.Credentials.Host = "http://localhost:-8080"
 		l, err := c.FetchLibrary()
 		assert.Nil(l, "Should return nil if failed")
 		assert.Error(err, "Should return an error on hard fail.")

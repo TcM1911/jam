@@ -34,11 +34,11 @@ The keybindings are mostly the same as in Cmus:
 | v             | stop                                                                         |
 | b             | next track                                                                   |
 | z             | previous track                                                               |
-| u             | synchronize the database (in case you added some songs in the web interface) |
+| Ctrl+u        | synchronize the database (in case you added some songs in the web interface) |
 | /             | search artists                                                               |
 | n             | next search result                                                           |
 | tab           | toggle artists/tracks view                                                   |
-| escape, q     | quit                                                                         |
+| escape        | quit                                                                         |
 | up arrow, k   | scroll up                                                                    |
 | down arrow, j | scroll down                                                                  |
 | Home, g       | scroll to top                                                                |

@@ -172,6 +172,15 @@ func (p *Player) Close() {
 	p.closeChan <- struct{}{}
 }
 
+// UpdateProvider sets a new provider for the player.
+// It stops the current playing track and restart the player.
+func (p *Player) UpdateProvider(c Provider) {
+	p.Stop()
+	p.Close()
+	p.provider = c
+	go p.playerLoop()
+}
+
 func (p *Player) updateCurrentTrack(t *Track) {
 	p.currentTrackMu.Lock()
 	defer p.currentTrackMu.Unlock()
@@ -194,6 +203,9 @@ func (p *Player) playerLoop() {
 				p.handler.Continue()
 				pausedDuration = pausedDuration + time.Since(pauseTimer)
 				continue
+			}
+			if status == Playing {
+				p.handler.Stop()
 			}
 			p.playNextInQueue(p.queue.popSong)
 			songStart = time.Now()
@@ -223,6 +235,7 @@ func (p *Player) playerLoop() {
 			ct := p.CurrentTrack()
 			if ct != nil {
 				p.played.pushSong(ct)
+				p.handler.Stop()
 			}
 			err := p.playNextInQueue(p.queue.popSong)
 			if err == ErrNoNextTrack {
@@ -241,6 +254,7 @@ func (p *Player) playerLoop() {
 				continue
 			}
 			p.queue.pushSong(p.CurrentTrack())
+			p.handler.Stop()
 			p.playNextInQueue(p.played.popSong)
 			songStart = time.Now()
 			pausedDuration = time.Duration(0)
