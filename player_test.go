@@ -29,6 +29,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -673,6 +675,22 @@ func TestQueue(t *testing.T) {
 		err := <-p.Error
 		assert.Equal(ErrNoNextTrack, err, "Wrong error returned")
 	})
+}
+
+func TestChangeProvider(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	p, _, oldProvider, _ := getPlayer()
+	p.CreatePlayQueue(tracks)
+	p.Play()
+	require.Equal(oldProvider, p.provider, "Wrong initial provider")
+	require.Equal(Playing, p.GetCurrentState(), "Should be playing")
+
+	expected := &mockProvider{}
+	p.UpdateProvider(expected)
+
+	assert.Equal(expected, p.provider, "New provider not set")
+	assert.Equal(Stopped, p.GetCurrentState(), "Should stop any track playing")
 }
 
 func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {

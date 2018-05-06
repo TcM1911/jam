@@ -172,6 +172,15 @@ func (p *Player) Close() {
 	p.closeChan <- struct{}{}
 }
 
+// UpdateProvider sets a new provider for the player.
+// It stops the current playing track and restart the player.
+func (p *Player) UpdateProvider(c Provider) {
+	p.Stop()
+	p.Close()
+	p.provider = c
+	go p.playerLoop()
+}
+
 func (p *Player) updateCurrentTrack(t *Track) {
 	p.currentTrackMu.Lock()
 	defer p.currentTrackMu.Unlock()
