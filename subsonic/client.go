@@ -40,22 +40,28 @@ const (
 )
 
 var (
-	credentialKey = []byte("subsonicCredsKey")
+	// CredentialKey is the database key for the credential structure.
+	CredentialKey = []byte("subsonicCredsKey")
 	// ErrAuthenticationFailed is returned if authentication with the server failed.
 	ErrAuthenticationFailed = errors.New("authentication failed")
 )
 
 // Client is the Subsonic client which talks to the Subsonic server.
 type Client struct {
-	credentials
+	Credentials
 	lib []*jamsonic.Artist
 }
 
-type credentials struct {
+// Credentials is structure for subsonic credentials.
+type Credentials struct {
+	// Username for the account.
 	Username string
-	Token    string
-	Salt     string
-	Host     string
+	// Authentication token.
+	Token string
+	// Salt for the authentication token.
+	Salt string
+	// Host is the URL to the server.
+	Host string
 }
 
 // New returns a new instance of the Subsonic client. If credentials are stored
@@ -63,21 +69,21 @@ type credentials struct {
 // request the user to enter the server url, username, and password on the command
 // line.
 func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester) (*Client, error) {
-	credBuf, err := db.GetCredentials(credentialKey)
+	credBuf, err := db.GetCredentials(CredentialKey)
 	if err == jamsonic.ErrNoCredentialsStored {
 		host := credRequester.GetServer()
 		username := credRequester.GetUsername()
 		password := credRequester.GetPassword()
-		client, err := login(username, password, host)
+		client, err := Login(username, password, host)
 		if err != nil {
 			return nil, err
 		}
-		creds := client.credentials
+		creds := client.Credentials
 		buf, err := json.Marshal(creds)
 		if err != nil {
 			return nil, err
 		}
-		err = db.SaveCredentials(credentialKey, buf)
+		err = db.SaveCredentials(CredentialKey, buf)
 		if err != nil {
 			return nil, err
 		}
@@ -86,16 +92,16 @@ func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester) (*Cl
 	if err != nil {
 		return nil, err
 	}
-	var creds credentials
+	var creds Credentials
 	err = json.Unmarshal(credBuf, &creds)
 	if err != nil {
 		return nil, err
 	}
-	client := Client{credentials: creds}
+	client := Client{Credentials: creds}
 	return &client, nil
 }
 
-func login(username, password, host string) (*Client, error) {
+func Login(username, password, host string) (*Client, error) {
 	hasher := md5.New()
 	randomUUID, err := uuid.NewV4()
 	if err != nil {
@@ -104,7 +110,7 @@ func login(username, password, host string) (*Client, error) {
 	salt := randomUUID.String()
 	hasher.Write([]byte(password + salt))
 	c := &Client{
-		credentials: credentials{
+		Credentials: Credentials{
 			Username: username,
 			Host:     host,
 			Token:    hex.EncodeToString(hasher.Sum(nil)),
@@ -140,7 +146,7 @@ func sendRequest(url string) (*apiResponse, error) {
 
 func (c *Client) makeRequestURL(method string) string {
 	return fmt.Sprintf("%s/rest/%s.view?u=%s&t=%s&s=%s&v=%s&c=%s&f=json",
-		c.credentials.Host,
+		c.Credentials.Host,
 		method,
 		c.Username,
 		c.Token,
@@ -152,5 +158,5 @@ func (c *Client) makeRequestURL(method string) string {
 
 // Host returns the server host.
 func (c *Client) Host() string {
-	return c.credentials.Host
+	return c.Credentials.Host
 }
