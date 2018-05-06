@@ -27,13 +27,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/TcM1911/jamsonic/tui"
+
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/gpm"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
 	"github.com/TcM1911/jamsonic/subsonic"
 	"github.com/TcM1911/jamsonic/ui"
-	"github.com/TcM1911/jamsonic/version"
 )
 
 const (
@@ -42,10 +43,12 @@ const (
 )
 
 var (
-	vers   bool
-	debug  bool
-	lastFM bool
-	useGPM bool
+	vers         bool
+	debug        bool
+	lastFM       bool
+	useGPM       bool
+	experimental bool
+	legacy       bool
 )
 
 func init() {
@@ -54,16 +57,28 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "debug")
 	flag.BoolVar(&lastFM, "lastfm", false, "Enable LastFM scrobbler")
 	flag.BoolVar(&useGPM, "googlemusic", false, "Use Google Play Music")
+	flag.BoolVar(&experimental, "experimental", false, "Use experimental features")
+	flag.BoolVar(&legacy, "legacy", false, "Use legacy features")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.Version))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, jamsonic.Version))
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
 
+	if experimental {
+		jamsonic.Experimental = true
+	}
+	if debug {
+		jamsonic.Debug = true
+	}
+	if debug {
+		jamsonic.Legacy = true
+	}
+
 	if vers {
-		fmt.Printf("%s\n", version.Version)
+		fmt.Printf("%s\n", jamsonic.Version)
 		os.Exit(0)
 	}
 }
@@ -91,7 +106,14 @@ func main() {
 		if err != nil {
 			log.Fatalln("Failed to sync the library with the SubSonic server:", err.Error())
 		}
-		doUI(client, &lastfm.Client{}, "None", db)
+		if !legacy {
+			ui := tui.New(db, client)
+			if err := ui.Run(); err != nil {
+				log.Println(err)
+			}
+		} else {
+			doUI(client, &lastfm.Client{}, "None", db)
+		}
 	}
 }
 

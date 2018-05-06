@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Joakim Kennedy
 // Copyright (c) 2016, 2017 Evgeny Badin
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,7 +19,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package version
+package jamsonic
 
-// Version represents the application version using SemVer
-const Version string = "0.7.0"
+import (
+	"regexp"
+	"testing"
+)
+
+func Test_Version(t *testing.T) {
+	validVersion := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT){0,1}|(-RC){0,1}$`)
+	if !validVersion.MatchString(Version) {
+		t.Fatal("Invalid version")
+	}
+}

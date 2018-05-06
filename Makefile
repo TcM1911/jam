@@ -1,7 +1,7 @@
 APP = jamsonic
 
 VERSION=$(shell \
-        grep "const Version" version/version.go \
+        grep "const Version" version.go \
         |awk -F'=' '{print $$2}' \
         |sed -e "s/[^0-9.]//g" \
 	|sed -e "s/ //g")
@@ -66,7 +66,7 @@ build: ## Make binary
 .PHONY: test
 test: ## Launch unit tests
 	@echo -e "$(OK_COLOR)[$(APP)] Launch unit tests $(NO_COLOR)"
-	@govendor test +local
+	@govendor test -timeout 1m -cover -race +local
 
 .PHONY: release
 release: test build ## Make a release

@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017 Evgeny Badin
+// Copyright (c) 2018 Joakim Kennedy
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,17 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package version
+// +build darwin
+
+package native
 
 import (
-	// "fmt"
-	"regexp"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_Version(t *testing.T) {
-	validVersion := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT){0,1}|(-RC){0,1}$`)
-	if !validVersion.MatchString(Version) {
-		t.Fatal("Invalid version")
+func TestPortaudio(t *testing.T) {
+	assert := assert.New(t)
+
+	// For some reason calling CloseStream on Travis panics.
+	// Skip these tests on Travis.
+	if os.Getenv("TRAVIS_GO_VERSION") != "" {
+		t.SkipNow()
 	}
+
+	t.Run("should create outputstream and close", func(t *testing.T) {
+		out, err := makeOutputStream()
+		assert.NoError(err, "makeOutputStream should not fail")
+		assert.NotNil(out, "Output stream should not be nil")
+		err = out.CloseStream()
+		assert.NoError(err, "Should close without error")
+	})
+
+	t.Run("write bytes", func(t *testing.T) {
+		w, err := makeOutputStream()
+		assert.NoError(err, "Should not fail")
+		buf := make([]byte, inputBufferSize)
+		_, err = w.Write(buf)
+		assert.NoError(err, "Should write without error")
+		w.CloseStream()
+	})
 }

@@ -35,7 +35,7 @@ type MusicStore interface {
 	// AddTracks stores the tracks to the database. This methods is
 	// deprecated and should not be used by new implementations.
 	AddTracks([]*Track) error
-	// AddPlaylists stores the playlists to teh database. This methods is
+	// AddPlaylists stores the playlists to the database. This methods is
 	// deprecated and should not be used by new implementations.
 	AddPlaylists(Provider, []*Playlist, []*PlaylistEntry) error
 	// Artists returns the stored artists from the database.

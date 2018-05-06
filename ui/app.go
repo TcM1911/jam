@@ -28,6 +28,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/TcM1911/jamsonic/native"
+
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
@@ -134,11 +136,32 @@ func New(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db 
 	}, nil
 }
 
+var musicPlayer *jamsonic.Player
+
 func (app *App) Run() {
 	defer app.Screen.Fini()
 	app.populateArtists()
 	app.populatePlaylists()
 	// log.Printf("Artists done")
+	if jamsonic.Experimental {
+		streamHandler := native.New()
+		callback := func(data *jamsonic.CallbackData) {
+			app.printBar(data.Duration, data.CurrentTrack)
+		}
+		musicPlayer = jamsonic.NewPlayer(app.Provider, streamHandler, callback, 1)
+		go func() {
+			err := musicPlayer.Error
+			for {
+				select {
+				case e := <-err:
+					if jamsonic.Debug {
+						log.Println("Player error:", e.Error())
+					}
+				}
+			}
+		}()
+
+	}
 	go app.player()
 	app.mainLoop()
 }
@@ -333,7 +356,20 @@ func (app *App) mainLoop() {
 			case tcell.KeyDown:
 				app.downEntry(what)
 			case tcell.KeyEnter:
-				app.Status.State <- play
+				if jamsonic.Experimental {
+					// Create playlist
+					var queue []*jamsonic.Track
+					for i := app.Status.NumAlbum[true]; i < len(app.Status.Queue); i++ {
+						album := app.Status.Queue[i]
+						for j := app.Status.NumTrack; j < len(album); j++ {
+							queue = append(queue, album[j])
+						}
+					}
+					musicPlayer.CreatePlayQueue(queue)
+					musicPlayer.Play()
+				} else {
+					app.Status.State <- play
+				}
 			case tcell.KeyCtrlSpace:
 				app.toggleTab()
 			}
@@ -341,6 +377,9 @@ func (app *App) mainLoop() {
 			case '/':
 				app.search(what)
 			case 'q':
+				if jamsonic.Experimental {
+					musicPlayer.Stop()
+				}
 				return
 			case 'j':
 				app.downEntry(what)
@@ -355,15 +394,44 @@ func (app *App) mainLoop() {
 				}
 				app.populateArtists()
 			case 'x':
-				app.Status.State <- play
+				if jamsonic.Experimental {
+					// Create playlist
+					var queue []*jamsonic.Track
+					for i := app.Status.NumAlbum[true]; i < len(app.Status.Queue); i++ {
+						album := app.Status.Queue[i]
+						for j := app.Status.NumTrack; j < len(album); j++ {
+							queue = append(queue, album[j])
+						}
+					}
+					musicPlayer.CreatePlayQueue(queue)
+					musicPlayer.Play()
+				} else {
+					app.Status.State <- play
+				}
 			case 'v':
-				app.Status.State <- stop
+				if jamsonic.Experimental {
+					musicPlayer.Stop()
+				} else {
+					app.Status.State <- stop
+				}
 			case 'c':
-				app.Status.State <- pause
+				if jamsonic.Experimental {
+					musicPlayer.Pause()
+				} else {
+					app.Status.State <- pause
+				}
 			case 'b':
-				app.Status.State <- next
+				if jamsonic.Experimental {
+					musicPlayer.Next()
+				} else {
+					app.Status.State <- next
+				}
 			case 'z':
-				app.Status.State <- prev
+				if jamsonic.Experimental {
+					musicPlayer.Previous()
+				} else {
+					app.Status.State <- prev
+				}
 			case 'n':
 				app.searchQuery(what)
 			case 'R':
