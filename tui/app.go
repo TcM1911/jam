@@ -97,7 +97,8 @@ func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 
 	// Header
 	header := tview.NewTextView().SetRegions(true).SetWrap(false).SetDynamicColors(true)
-	header.SetBorder(true).SetTitle("Jamsonic")
+	banner := fmt.Sprintf("[ Jamsonic %s ]", jamsonic.Version)
+	header.SetBorder(true).SetTitle(banner)
 	header.Highlight("0")
 
 	tui.header = header
