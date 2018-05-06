@@ -22,4 +22,4 @@
 package jamsonic
 
 // Version represents the application version using SemVer
-const Version string = "0.8.0-SNAPSHOT"
+const Version string = "0.8.0"
