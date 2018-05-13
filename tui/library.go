@@ -222,8 +222,18 @@ func (tui *TUI) playTracks(index int, entry string) {
 		// Otherwise get the track and album structs from the maps
 		tr := tui.trackListed[entry]
 		alb := tui.albumListed[entry]
+		// TODO: Fix so you can get the tracks based on disc and track number.
+		// Find entry in the album. Can directly use the track number since we don't
+		// know the disc number.
+		var trackEntry int
+		for i, t := range alb.Tracks {
+			if t == tr {
+				trackEntry = i
+				break
+			}
+		}
 		// Select the track and the tracks after in the album.
-		tracks = alb.Tracks[int(tr.TrackNumber)-1:]
+		tracks = alb.Tracks[trackEntry:]
 	}
 	tui.player.CreatePlayQueue(tracks)
 	nonUIBlockingCall(tui.player.Play)
