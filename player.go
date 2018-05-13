@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"log"
 	"sync"
 	"time"
 )
@@ -187,7 +188,21 @@ func (p *Player) updateCurrentTrack(t *Track) {
 	p.currentTrack = t
 }
 
+func handleErrors(errs <-chan error, close <-chan struct{}) {
+	for {
+		select {
+		case <-close:
+			return
+		case e := <-errs:
+			// Just log errors for now.
+			log.Println("Handler error:", e.Error())
+		}
+	}
+}
+
 func (p *Player) playerLoop() {
+	stopErrHandle := make(chan struct{})
+	go handleErrors(p.handler.Errors(), stopErrHandle)
 	finished := p.handler.Finished()
 	ticker := time.NewTicker(time.Millisecond * time.Duration(p.callbackInterval))
 	// Timers
@@ -288,6 +303,7 @@ func (p *Player) playerLoop() {
 			}
 		}
 	}
+	stopErrHandle <- struct{}{}
 }
 
 func (p *Player) playNextInQueue(getTrack func() *Track) error {
@@ -426,6 +442,10 @@ type StreamHandler interface {
 	Pause()
 	// Continue is called when stream processing should be resumed after it has been paused.
 	Continue()
+	// Errors returns a channel with errors from the handler. All read and write errors not handled
+	// by the stream handler is sent to this channel. The controller must listen to this channel or
+	// the handler might hang.
+	Errors() <-chan error
 }
 
 // bufReadWriter is a buffer that is "thread safe". Tracks are read in and stored in memory buffer.
