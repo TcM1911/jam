@@ -210,6 +210,7 @@ func (p *Player) playerLoop() {
 	songDuration := time.Duration(0)
 	var pauseTimer time.Time
 	var songStart time.Time
+controllerLoop:
 	for {
 		select {
 		case <-p.playChan:
@@ -286,7 +287,7 @@ func (p *Player) playerLoop() {
 			songStart = time.Now()
 			pausedDuration = time.Duration(0)
 		case <-p.closeChan:
-			return
+			break controllerLoop
 		case <-ticker.C:
 			if p.GetCurrentState() == Stopped {
 				continue
