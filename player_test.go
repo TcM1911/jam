@@ -693,6 +693,16 @@ func TestChangeProvider(t *testing.T) {
 	assert.Equal(Stopped, p.GetCurrentState(), "Should stop any track playing")
 }
 
+func TestErrorHandle(t *testing.T) {
+	p, _, _, handler := getPlayer()
+	errChan := handler.errChan
+	p.CreatePlayQueue(tracks)
+	p.Play()
+
+	// Should not block on error.
+	errChan <- errors.New("test error")
+}
+
 func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 	finishedChan := make(chan struct{})
 
@@ -707,6 +717,7 @@ func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 		doStop:     func() {},
 		doPause:    func() {},
 		doContinue: func() {},
+		errChan:    make(chan error),
 	}
 	return NewPlayer(provider, handler, nil, 0), finishedChan, provider, handler
 }
@@ -775,6 +786,7 @@ type mockStreaHandler struct {
 	calledPause     int
 	doContinue      func()
 	calledContrinue int
+	errChan         chan error
 }
 
 var calledMu sync.RWMutex
@@ -809,6 +821,10 @@ func (m *mockStreaHandler) Continue() {
 	defer calledMu.Unlock()
 	m.calledContrinue++
 	m.doContinue()
+}
+
+func (m *mockStreaHandler) Errors() <-chan error {
+	return m.errChan
 }
 
 type mockProvider struct {
