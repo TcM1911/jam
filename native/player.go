@@ -128,14 +128,15 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 				case <-p.stopChan:
 					return
 				}
-			} else if err != nil {
+				// Ignoring io.ErrUnexpectedEOF. Write what we have in the buffer
+				// and allow another read that returns an io.EOF.
+				// Other errors are reported to the controller.
+			} else if err != nil && err != io.ErrUnexpectedEOF {
 				p.errChan <- err
-				return
 			}
 			_, err = p.writer.Write(buf)
 			if err != nil {
 				p.errChan <- err
-				return
 			}
 		}
 	}
