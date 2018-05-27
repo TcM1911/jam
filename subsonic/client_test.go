@@ -53,7 +53,8 @@ func TestNewClient(t *testing.T) {
 		w.Write(buf)
 	}))
 	expectedCreds := Credentials{Host: ts.URL, Salt: "salt", Token: "token", Username: "un"}
-	expectedClient := Client{Credentials: expectedCreds}
+	expectedLogger := jamsonic.DefaultLogger()
+	expectedClient := Client{Credentials: expectedCreds, logger: expectedLogger}
 
 	// Tests
 	t.Run("stored_credentials", func(t *testing.T) {
@@ -63,7 +64,7 @@ func TestNewClient(t *testing.T) {
 				return buf, nil
 			},
 		}
-		actual, err := New(s, jamsonic.DefaultCredentialRequest)
+		actual, err := New(s, jamsonic.DefaultCredentialRequest, expectedLogger)
 		assert.NoError(err, "Should create without an error")
 		assert.Equal(expectedClient, *actual, "Wrong client data returned.")
 	})
@@ -77,7 +78,7 @@ func TestNewClient(t *testing.T) {
 				return nil
 			},
 		}
-		_, err := New(s, reqer)
+		_, err := New(s, reqer, jamsonic.DefaultLogger())
 		assert.NoError(err, "Should create without an error")
 	})
 	t.Run("wrong_credentials", func(t *testing.T) {
@@ -87,7 +88,7 @@ func TestNewClient(t *testing.T) {
 				return nil, jamsonic.ErrNoCredentialsStored
 			},
 		}
-		_, err := New(s, reqer)
+		_, err := New(s, reqer, jamsonic.DefaultLogger())
 		assert.Equal(ErrAuthenticationFailed, err, "Should return an error if auth fails")
 	})
 	t.Run("error_from_GetCredentials", func(t *testing.T) {
@@ -97,7 +98,7 @@ func TestNewClient(t *testing.T) {
 				return nil, expectedErr
 			},
 		}
-		_, err := New(s, jamsonic.DefaultCredentialRequest)
+		_, err := New(s, jamsonic.DefaultCredentialRequest, jamsonic.DefaultLogger())
 		assert.Equal(expectedErr, err, "Wrong error returned")
 	})
 	t.Run("error_from_SaveCredentials", func(t *testing.T) {
@@ -111,7 +112,7 @@ func TestNewClient(t *testing.T) {
 				return expectedErr
 			},
 		}
-		_, err := New(s, reqer)
+		_, err := New(s, reqer, jamsonic.DefaultLogger())
 		assert.Equal(expectedErr, err, "Wrong error returned")
 	})
 }

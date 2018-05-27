@@ -24,7 +24,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/TcM1911/jamsonic/tui"
@@ -70,10 +69,7 @@ func init() {
 	if experimental {
 		jamsonic.Experimental = true
 	}
-	if debug {
-		jamsonic.Debug = true
-	}
-	if debug {
+	if legacy {
 		jamsonic.Legacy = true
 	}
 
@@ -84,32 +80,43 @@ func init() {
 }
 
 func main() {
-	db, err := storage.Open()
+	logger := jamsonic.DefaultLogger()
+	if debug {
+		logger.SetLevel(jamsonic.DebugLevel)
+	}
+	storageLogger := logger.SubLogger("[Storage]")
+	db, err := storage.Open(storageLogger)
 	defer db.Bolt.Close()
 	if err != nil {
-		log.Fatalf("Can't open database: %s", err)
+		logger.ErrorLog("Can't open database: " + err.Error())
+		return
 	}
 	if useGPM {
 		provider, lmclient, lastfm, err := gpm.CheckCreds(db, &lastFM)
 		if err != nil {
-			log.Fatalf("Can't connect to Google Music: %s", err)
+			logger.ErrorLog("Can't connect to Google Music: " + err.Error())
+			return
 		}
 		if err = doUI(provider, lmclient, lastfm, db); err != nil {
-			log.Fatalf("Can't start UI: %s", err)
+			logger.ErrorLog("Can't start UI: " + err.Error())
+			return
 		}
 	} else {
-		client, err := subsonic.New(db, jamsonic.DefaultCredentialRequest)
+		subsonicLogger := logger.SubLogger("[Subsonic client]")
+		client, err := subsonic.New(db, jamsonic.DefaultCredentialRequest, subsonicLogger)
 		if err != nil {
-			log.Fatalln("Can't connect to SubSonic server:", err.Error())
+			logger.ErrorLog("Can't connect to SubSonic server: " + err.Error())
+			return
 		}
 		db.LibName = []byte(client.Host())
 		if err != nil {
-			log.Fatalln("Failed to sync the library with the SubSonic server:", err.Error())
+			logger.ErrorLog("Failed to sync the library with the SubSonic server: " + err.Error())
+			return
 		}
 		if !legacy {
-			ui := tui.New(db, client)
+			ui := tui.New(db, client, logger)
 			if err := ui.Run(); err != nil {
-				log.Println(err)
+				logger.ErrorLog(err.Error())
 			}
 		} else {
 			doUI(client, &lastfm.Client{}, "None", db)
