@@ -44,7 +44,7 @@ func (tui *TUI) globalControl(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
 	// Switch to next page.
 	case tcell.KeyCtrlN:
-		tui.currentPage = (tui.currentPage + 1) % 2
+		tui.currentPage = (tui.currentPage + 1) % 3
 		switchPage(tui, tui.currentPage)
 	case tcell.KeyEsc:
 		// If shift Escape, it's a force quit so just exit
