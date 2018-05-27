@@ -86,7 +86,6 @@ func TestRetryReads(t *testing.T) {
 	t.Run("fail first read", func(t *testing.T) {
 		s := newStream(1)
 		buf := make([]byte, len(readerContent))
-		max := time.Duration(int64(float64(jamsonic.BufferingWait) * 1.5))
 		min := time.Duration(int64(float64(jamsonic.BufferingWait) * 0.5))
 
 		start := time.Now()
@@ -96,7 +95,6 @@ func TestRetryReads(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(len(readerContent), n)
 		assert.Equal(readerContent, string(buf))
-		assert.True(readTime < max)
 		assert.True(readTime > min)
 	})
 
@@ -104,7 +102,6 @@ func TestRetryReads(t *testing.T) {
 		s := newStream(2)
 		buf := make([]byte, len(readerContent))
 		expectedRuntime := jamsonic.BufferingWait + jamsonic.BufferingWait<<1
-		max := time.Duration(int64(float64(expectedRuntime) * 1.2))
 		min := time.Duration(int64(float64(expectedRuntime) * 0.8))
 
 		start := time.Now()
@@ -114,7 +111,6 @@ func TestRetryReads(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(len(readerContent), n)
 		assert.Equal(readerContent, string(buf))
-		assert.True(readTime < max)
 		assert.True(readTime > min)
 	})
 
@@ -125,7 +121,6 @@ func TestRetryReads(t *testing.T) {
 		for i := 1; i < jamsonic.MaxReadRetryAttempts-1; i++ {
 			expectedRuntime += (jamsonic.BufferingWait << uint(i))
 		}
-		max := time.Duration(int64(float64(expectedRuntime) * 1.1))
 		min := time.Duration(int64(float64(expectedRuntime) * 0.9))
 
 		start := time.Now()
@@ -135,7 +130,6 @@ func TestRetryReads(t *testing.T) {
 		assert.Error(err)
 		assert.Equal(0, n)
 		assert.Equal(io.EOF, err)
-		assert.True(readTime < max)
 		assert.True(readTime > min)
 	})
 
