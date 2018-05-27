@@ -18,17 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package jamsonic
+package tui
 
 import (
-	"time"
+	"github.com/rivo/tview"
 )
 
-var Experimental = false
-var Legacy = false
-
-// BufferingWait is the time in milliseconds to wait on reading from the network socket
-// before playing the track. If this is to low, an EOF can be returned when reading
-// from the memory buffer causing the track from being skipped.
-// Default value is 200 ms.
-var BufferingWait = time.Duration(200 * time.Millisecond)
+func (tui *TUI) createLogPage() *tview.TextView {
+	logPage := tview.NewTextView()
+	logPage.SetBorder(true)
+	logPage.SetChangedFunc(func() {
+		if !logPage.HasFocus() {
+			return
+		}
+		logPage.ScrollToEnd()
+	})
+	return logPage
+}

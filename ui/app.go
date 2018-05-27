@@ -153,10 +153,10 @@ func (app *App) Run() {
 			err := musicPlayer.Error
 			for {
 				select {
-				case e := <-err:
-					if jamsonic.Debug {
-						log.Println("Player error:", e.Error())
-					}
+				case <-err:
+					// if jamsonic.Debug {
+					// 	log.Println("Player error:", e.Error())
+					// }
 				}
 			}
 		}()

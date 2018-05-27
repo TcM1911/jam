@@ -22,7 +22,6 @@ package tui
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"time"
@@ -36,6 +35,7 @@ import (
 
 // TUI is the struct for the terminal UI.
 type TUI struct {
+	logger *jamsonic.Logger
 	// Holds the id of the current page being displayed by the TUI.
 	currentPage int
 	// The application struct.
@@ -88,11 +88,12 @@ type TUI struct {
 }
 
 // New returns a TUI object. This should only be called once.
-func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
+func New(db *storage.BoltDB, client jamsonic.Provider, logger *jamsonic.Logger) *TUI {
 	tui := &TUI{
-		app:   tview.NewApplication(),
-		db:    db,
-		pages: tview.NewPages(),
+		app:    tview.NewApplication(),
+		db:     db,
+		pages:  tview.NewPages(),
+		logger: logger,
 	}
 
 	// Header
@@ -103,7 +104,7 @@ func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 
 	tui.header = header
 
-	pageLists := []string{"Library", "Settings"}
+	pageLists := []string{"Library", "Settings", "Log"}
 	for i, page := range pageLists {
 		fmt.Fprintf(header, `%d ["%d"][white]%s[white][""]  `, i+1, i, page)
 	}
@@ -120,8 +121,14 @@ func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 		AddItem(tui.footer, 3, 1, false)
 
 	// Add pages
+	logPage := tui.createLogPage()
 	tui.pages.AddPage("0", tui.createLibraryPage(), true, true)
 	tui.pages.AddPage("1", tui.createSettingsPage(), true, false)
+	tui.pages.AddPage("2", logPage, true, false)
+
+	// Set logger
+	logger.SetOutput(logPage)
+	logger.DebugLog("Switched to log page for logging.")
 
 	// Register global key event handler.
 	tui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -130,13 +137,15 @@ func New(db *storage.BoltDB, client jamsonic.Provider) *TUI {
 
 	/// To be moved
 	streamHandler := native.New()
+	playerLogger := logger.SubLogger("[Player]")
+	logger.DebugLog("Starting the player.")
 	tui.player = jamsonic.NewPlayer(client, streamHandler, tui.playerCallback, 500)
 	go func() {
 		err := tui.player.Error
 		for {
 			select {
 			case e := <-err:
-				log.Println("Player error:", e.Error())
+				playerLogger.ErrorLog("Player error: " + e.Error())
 			}
 		}
 	}()

@@ -65,6 +65,7 @@ func fullDbPath() string {
 type BoltDB struct {
 	Bolt    *bolt.DB
 	LibName []byte
+	logger  *jamsonic.Logger
 }
 
 func (d *BoltDB) SaveCredentials(key []byte, credStruct []byte) error {
@@ -93,9 +94,12 @@ func (d *BoltDB) GetCredentials(key []byte) ([]byte, error) {
 	return buf, err
 }
 
-func Open() (*BoltDB, error) {
-	db, err := bolt.Open(fullDbPath(), 0600, nil)
-	return &BoltDB{Bolt: db}, err
+func Open(logger *jamsonic.Logger) (*BoltDB, error) {
+	dbPath := fullDbPath()
+	logger.DebugLog("Opening database stored at " + dbPath)
+	db, err := bolt.Open(dbPath, 0600, nil)
+	logger.DebugLog("Database opened")
+	return &BoltDB{Bolt: db, logger: logger}, err
 }
 
 func ReadCredentials(db *bolt.DB) ([]byte, []byte, error) {

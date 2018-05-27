@@ -49,7 +49,8 @@ var (
 // Client is the Subsonic client which talks to the Subsonic server.
 type Client struct {
 	Credentials
-	lib []*jamsonic.Artist
+	lib    []*jamsonic.Artist
+	logger *jamsonic.Logger
 }
 
 // Credentials is structure for subsonic credentials.
@@ -68,21 +69,28 @@ type Credentials struct {
 // in the storage, the client will use the stored credentials. Otherwise, it will
 // request the user to enter the server url, username, and password on the command
 // line.
-func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester) (*Client, error) {
+func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester, logger *jamsonic.Logger) (*Client, error) {
+	logger.DebugLog("Getting stored credentials from the database.")
 	credBuf, err := db.GetCredentials(CredentialKey)
 	if err == jamsonic.ErrNoCredentialsStored {
+		logger.DebugLog("No stored credentials")
 		host := credRequester.GetServer()
 		username := credRequester.GetUsername()
 		password := credRequester.GetPassword()
+		logger.InfoLog("Testing credentials.")
 		client, err := Login(username, password, host)
 		if err != nil {
+			logger.DebugLog("Testing credentials failed.")
 			return nil, err
 		}
+		client.logger = logger
+		logger.InfoLog("Credentials valid.")
 		creds := client.Credentials
 		buf, err := json.Marshal(creds)
 		if err != nil {
 			return nil, err
 		}
+		logger.DebugLog("Saving the credentials to the database.")
 		err = db.SaveCredentials(CredentialKey, buf)
 		if err != nil {
 			return nil, err
@@ -97,7 +105,7 @@ func New(db jamsonic.AuthStore, credRequester jamsonic.CredentialRequester) (*Cl
 	if err != nil {
 		return nil, err
 	}
-	client := Client{Credentials: creds}
+	client := Client{Credentials: creds, logger: logger}
 	return &client, nil
 }
 

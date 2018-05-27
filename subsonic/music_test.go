@@ -160,10 +160,12 @@ func TestFetchLibrary(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte{0x0, 0x1})
 	}))
-	c := &Client{Credentials: Credentials{
-		Username: "username",
-		Host:     ts.URL,
-	},
+	c := &Client{
+		Credentials: Credentials{
+			Username: "username",
+			Host:     ts.URL,
+		},
+		logger: jamsonic.DefaultLogger(),
 	}
 	t.Run("get_lib", func(t *testing.T) {
 		l, err := c.FetchLibrary()

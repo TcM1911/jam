@@ -25,7 +25,6 @@ package subsonic
 import (
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -120,18 +119,20 @@ func (c *Client) FetchLibrary() ([]*jamsonic.Artist, error) {
 
 func getArtistSongs(c *Client, ajob <-chan *artist, result chan<- *jamsonic.Artist, wg *sync.WaitGroup) {
 	defer wg.Done()
+	logger := c.logger
 	for a := range ajob {
-		log.Println("Downloading tracks for", a.Name)
+		logger.InfoLog("Downloading tracks for " + a.Name)
 		albumRes, err := getArtistAlbums(c, a.ID)
 		albums := make([]*jamsonic.Album, len(albumRes))
 		if err != nil {
-			log.Println("Failed to process", a.Name)
+			logger.ErrorLog("Failed to process " + a.Name)
 			continue
 		}
 		for k, album := range albumRes {
+			logger.DebugLog("Processing " + album.Name)
 			songs, err := getAlbumSongs(c, album.ID)
 			if err != nil {
-				log.Println("Failed to process", album.Name)
+				logger.ErrorLog("Failed to process " + album.Name)
 			}
 			tracks := make([]*jamsonic.Track, len(songs))
 			for i, v := range songs {
