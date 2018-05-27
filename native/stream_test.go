@@ -27,13 +27,11 @@ import (
 	"time"
 
 	"github.com/TcM1911/jamsonic"
-
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNormalStreamRead(t *testing.T) {
 	assert := assert.New(t)
-
 	readerContent := "test reader content!"
 	contentLength := len(readerContent)
 
