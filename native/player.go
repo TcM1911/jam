@@ -45,7 +45,7 @@ type StreamHandler struct {
 	reader       io.Reader
 	finishedChan chan struct{}
 	stopChan     chan struct{}
-	newTrackChan chan *io.Reader
+	newTrackChan chan io.Reader
 	errChan      chan error
 	pauseChan    chan struct{}
 	continueChan chan struct{}
@@ -55,7 +55,7 @@ func New() *StreamHandler {
 	return &StreamHandler{
 		finishedChan: make(chan struct{}),
 		stopChan:     make(chan struct{}),
-		newTrackChan: make(chan *io.Reader),
+		newTrackChan: make(chan io.Reader),
 		errChan:      make(chan error),
 		pauseChan:    make(chan struct{}),
 		continueChan: make(chan struct{}),
@@ -73,7 +73,8 @@ func (p *StreamHandler) Errors() <-chan error {
 	return p.errChan
 }
 
-func (p *StreamHandler) Play(stream io.Reader) error {
+func (p *StreamHandler) Play(iostream io.Reader) error {
+	s := &stream{reader: iostream}
 	p.writerMu.Lock()
 	defer p.writerMu.Unlock()
 	// Nothing playing
@@ -83,10 +84,10 @@ func (p *StreamHandler) Play(stream io.Reader) error {
 			return err
 		}
 		p.writer = writer
-		go mainLoop(p, stream)
+		go mainLoop(p, s)
 	} else {
 		// Already playing a track, telling to switch stream.
-		p.newTrackChan <- &stream
+		p.newTrackChan <- s
 	}
 	return nil
 }
@@ -108,12 +109,12 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 			case <-p.stopChan:
 				return
 			case r := <-p.newTrackChan:
-				p.reader = newDecoder(r)
+				p.reader = newDecoder(&r)
 				continue
 			}
 		// New stream
 		case r := <-p.newTrackChan:
-			p.reader = newDecoder(r)
+			p.reader = newDecoder(&r)
 		// Play
 		default:
 			_, err := p.reader.Read(buf)
@@ -123,7 +124,7 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 				select {
 				// New track
 				case r := <-p.newTrackChan:
-					p.reader = newDecoder(r)
+					p.reader = newDecoder(&r)
 					continue
 				case <-p.stopChan:
 					return
