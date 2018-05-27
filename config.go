@@ -32,3 +32,6 @@ var Legacy = false
 // from the memory buffer causing the track from being skipped.
 // Default value is 200 ms.
 var BufferingWait = time.Duration(200 * time.Millisecond)
+
+// MaxReadRetryAttempts is the number of retries when a EOF is returned during the first read.
+var MaxReadRetryAttempts = 5
