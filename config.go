@@ -25,7 +25,6 @@ import (
 )
 
 var Experimental = false
-var Debug = false
 var Legacy = false
 
 // BufferingWait is the time in milliseconds to wait on reading from the network socket
