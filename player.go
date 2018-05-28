@@ -51,7 +51,7 @@ var (
 // The callback is a function that is called every interval by the Player as long as the state is
 // not stopped. If interval is set to 0, the callback will be called every 1000 ms.
 // The callback function can be used to update the UI with current play status etc.
-func NewPlayer(p Provider, h StreamHandler, callback func(*CallbackData), interval int) *Player {
+func NewPlayer(l *Logger, p Provider, h StreamHandler, callback func(*CallbackData), interval int) *Player {
 	if interval == 0 {
 		interval = 1000
 	}
@@ -69,6 +69,7 @@ func NewPlayer(p Provider, h StreamHandler, callback func(*CallbackData), interv
 		stopChan:         make(chan struct{}),
 		played:           &playqueue{array: make([]*Track, 0)},
 		buffer:           newBufReadWriter(),
+		logger:           l,
 	}
 	// Since know the buffer doesn't have any current writes to it,
 	// set buffered to true so we don't allocate a new buffer.
@@ -112,6 +113,7 @@ type Player struct {
 	// bufMu protects the buffer pointer from being manipulated by multiple go routines.
 	bufMu  sync.Mutex
 	buffer *bufReadWriter
+	logger *Logger
 }
 
 // Play starts or resumes playing the track first in the play queue.
@@ -326,9 +328,11 @@ func (p *Player) playNextInQueue(getTrack func() *Track) error {
 	// If buffered, just reset and reuse the buffer.
 	p.buffer.bufferedMu.Lock()
 	if p.buffer.buffered {
+		p.logger.DebugLog("Reusing memory buffer.")
 		p.buffer.Reset()
 		p.buffer.bufferedMu.Unlock()
 	} else {
+		p.logger.DebugLog("Using a new memory buffer.")
 		// Since we can't stop to copy, create a new buffer
 		// and let the GC clean up the old buffer.
 		p.buffer.bufferedMu.Unlock()
@@ -339,7 +343,9 @@ func (p *Player) playNextInQueue(getTrack func() *Track) error {
 
 	// Get the track data off the wire and into a memory buffer.
 	go func() {
+		go p.logger.DebugLog("Reading track into memory buffer.")
 		_, cpErr := io.Copy(buf, stream)
+		go p.logger.DebugLog("Track saved to memory buffer.")
 		if cpErr != nil {
 			p.Error <- cpErr
 			return

@@ -24,6 +24,7 @@ package native
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/koron/go-waveout"
 )
@@ -33,8 +34,9 @@ type windowsOutputStream struct {
 }
 
 func init() {
-	makeOutputStream = func() (OutputStream, error) {
-		player, err := waveout.NewWithBuffers(2, 44100, 16, 8, 4096)
+	// Changing to Windows specific function.
+	newOutputWriter = func(sampleRate int) (io.WriteCloser, error) {
+		player, err := waveout.NewWithBuffers(numOutputChans, sampleRate, 16, 8, outputBufferSize)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create waveout: %s", err)
 		}
@@ -44,7 +46,7 @@ func init() {
 	}
 }
 
-func (wos *windowsOutputStream) CloseStream() error {
+func (wos *windowsOutputStream) Close() error {
 	return wos.Player.Close()
 }
 

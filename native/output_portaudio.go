@@ -18,23 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// +build darwin
-
 package native
 
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 	"log"
 
 	"github.com/gordonklaus/portaudio"
 )
 
 const (
-	numInputChans    = 0
-	numOutputChans   = 2
-	sampleRate       = 44100
-	outputBufferSize = 8192 / 2
+	numInputChans = 0
 )
 
 // portaudioOutputStream implements the OutputStream interface and
@@ -44,23 +40,21 @@ type portaudioOutputStream struct {
 	buf    []int16
 }
 
-func init() {
-	makeOutputStream = func() (OutputStream, error) {
-		out := &portaudioOutputStream{buf: make([]int16, outputBufferSize)}
-		if err := portaudio.Initialize(); err != nil {
-			return nil, err
-		}
-		stream, err := portaudio.OpenDefaultStream(
-			numInputChans, numOutputChans, float64(sampleRate), len(out.buf), out.buf)
-		if err != nil {
-			return nil, err
-		}
-		out.stream = stream
-		if err := stream.Start(); err != nil {
-			return nil, err
-		}
-		return out, nil
+var newOutputWriter func(sampleRate int) (io.WriteCloser, error) = func(sampleRate int) (io.WriteCloser, error) {
+	out := &portaudioOutputStream{buf: make([]int16, outputBufferSize)}
+	if err := portaudio.Initialize(); err != nil {
+		return nil, err
 	}
+	stream, err := portaudio.OpenDefaultStream(
+		numInputChans, numOutputChans, float64(sampleRate), len(out.buf), out.buf)
+	if err != nil {
+		return nil, err
+	}
+	out.stream = stream
+	if err := stream.Start(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // CloseStream closes the stream.
@@ -73,12 +67,9 @@ func (p *portaudioOutputStream) Close() error {
 	defer portaudio.Terminate()
 	p.buf = make([]int16, 0)
 	p.stream.Stop()
-	if err := p.stream.Close(); err != nil {
-		p.stream = nil
-		return err
-	}
+	err := p.stream.Close()
 	p.stream = nil
-	return nil
+	return err
 }
 
 // Write writes the data to portaudio's audio interface.

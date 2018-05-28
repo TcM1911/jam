@@ -27,7 +27,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+const testSampleRate = 44100
 
 func TestPortaudio(t *testing.T) {
 	assert := assert.New(t)
@@ -39,19 +42,19 @@ func TestPortaudio(t *testing.T) {
 	}
 
 	t.Run("should create outputstream and close", func(t *testing.T) {
-		out, err := makeOutputStream()
-		assert.NoError(err, "makeOutputStream should not fail")
+		out, err := newOutputWriter(testSampleRate)
+		require.NoError(t, err, "makeOutputStream should not fail")
 		assert.NotNil(out, "Output stream should not be nil")
-		err = out.CloseStream()
+		err = out.Close()
 		assert.NoError(err, "Should close without error")
 	})
 
 	t.Run("write bytes", func(t *testing.T) {
-		w, err := makeOutputStream()
-		assert.NoError(err, "Should not fail")
+		w, err := newOutputWriter(testSampleRate)
+		require.NoError(t, err, "Should not fail")
 		buf := make([]byte, inputBufferSize)
 		_, err = w.Write(buf)
 		assert.NoError(err, "Should write without error")
-		w.CloseStream()
+		w.Close()
 	})
 }

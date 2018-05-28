@@ -448,7 +448,7 @@ func TestPlayControl(t *testing.T) {
 			duration = data.Duration
 			go p.Stop()
 		}
-		p = NewPlayer(provider, handler, callback, 1000)
+		p = NewPlayer(DefaultLogger(), provider, handler, callback, 1000)
 		p.CreatePlayQueue(tracks)
 
 		// Should not run the callback when the state is stopped.
@@ -484,7 +484,7 @@ func TestPlayControl(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 		p.CreatePlayQueue(tracks)
 
 		p.Play()
@@ -512,7 +512,7 @@ func TestPlayControl(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 		p.CreatePlayQueue(tracks)
 
 		p.Play()
@@ -551,7 +551,7 @@ func TestStreamBuffering(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 
 		// Catch error
 		var err error
@@ -586,7 +586,7 @@ func TestStreamBuffering(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 
 		// Catch error
 		var err error
@@ -623,7 +623,7 @@ func TestStreamBuffering(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 		p.CreatePlayQueue(tracks)
 
 		p.Play()
@@ -649,7 +649,7 @@ func TestStreamBuffering(t *testing.T) {
 			doPause:    func() {},
 			doContinue: func() {},
 		}
-		p := NewPlayer(provider, handler, nil, 0)
+		p := NewPlayer(DefaultLogger(), provider, handler, nil, 0)
 		p.CreatePlayQueue(tracks)
 
 		p.Play()
@@ -719,7 +719,7 @@ func getPlayer() (*Player, chan struct{}, *mockProvider, *mockStreaHandler) {
 		doContinue: func() {},
 		errChan:    make(chan error),
 	}
-	return NewPlayer(provider, handler, nil, 0), finishedChan, provider, handler
+	return NewPlayer(DefaultLogger(), provider, handler, nil, 0), finishedChan, provider, handler
 }
 
 type recorder struct {

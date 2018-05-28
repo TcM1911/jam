@@ -136,10 +136,11 @@ func New(db *storage.BoltDB, client jamsonic.Provider, logger *jamsonic.Logger) 
 	})
 
 	/// To be moved
-	streamHandler := native.New()
+	handlerLogger := logger.SubLogger("[Stream handler]")
+	streamHandler := native.New(handlerLogger)
 	playerLogger := logger.SubLogger("[Player]")
 	logger.DebugLog("Starting the player.")
-	tui.player = jamsonic.NewPlayer(client, streamHandler, tui.playerCallback, 500)
+	tui.player = jamsonic.NewPlayer(playerLogger, client, streamHandler, tui.playerCallback, 500)
 	go func() {
 		err := tui.player.Error
 		for {
