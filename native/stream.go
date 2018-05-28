@@ -18,20 +18,53 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package jamsonic
+package native
 
 import (
+	"io"
+	"sync"
 	"time"
+
+	"github.com/TcM1911/jamsonic"
 )
 
-var Experimental = false
-var Legacy = false
+type stream struct {
+	reader io.Reader
+	once   sync.Once
+}
 
-// BufferingWait is the time in milliseconds to wait on reading from the network socket
-// before playing the track. If this is to low, an EOF can be returned when reading
-// from the memory buffer causing the track from being skipped.
-// Default value is 200 ms.
-var BufferingWait = time.Duration(200 * time.Millisecond)
+func (s *stream) Read(b []byte) (int, error) {
+	var n int
+	var err error
+	// First read with back-off.
+	s.once.Do(func() {
+		n, err = s.reader.Read(b)
+		// If we get an EOF we start to retry with backoffs.
+		if err == io.EOF {
+			n, err = s.retryWithBackoff(b, jamsonic.BufferingWait, 1)
+		}
+	})
+	// Return if n or err was set by the Do function.
+	// n != 0 is true if read worked.
+	// err != nil is true if read failed.
+	// n == 0 and err == nil if Do wasn't executed.
+	if n != 0 || err != nil {
+		return n, err
+	}
+	return s.reader.Read(b)
+}
 
-// MaxReadRetryAttempts is the number of retries when a EOF is returned during the first read.
-var MaxReadRetryAttempts = 5
+func (s *stream) retryWithBackoff(b []byte, wait time.Duration, attempt int) (int, error) {
+	if attempt >= jamsonic.MaxReadRetryAttempts {
+		return 0, io.EOF
+	}
+	time.Sleep(wait)
+	n, err := s.reader.Read(b)
+	if err == io.EOF {
+		// Double the wait time and retry.
+		newWait := wait << 1
+		attempt += 1
+		return s.retryWithBackoff(b, newWait, attempt)
+	}
+	return n, err
+}
