@@ -9,6 +9,7 @@ addons:
     packages:
     - libpulse-dev
     - libportaudio-dev
+    - portaudio19-dev
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install portaudio; fi
