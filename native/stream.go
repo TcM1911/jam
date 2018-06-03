@@ -26,11 +26,24 @@ import (
 	"time"
 
 	"github.com/TcM1911/jamsonic"
+	mp3 "github.com/hajimehoshi/go-mp3"
+)
+
+var (
+	numOutputChans  = 2
+	inputBufferSize = 1024 / 2
+	// Since input uses int8 and output uses int16, we need a buffer of half the size.
+	outputBufferSize = inputBufferSize / 2
 )
 
 type stream struct {
 	reader io.Reader
 	once   sync.Once
+}
+
+func (s *stream) Close() error {
+	// The stream closing is handled by the player.
+	return nil
 }
 
 func (s *stream) Read(b []byte) (int, error) {
@@ -67,4 +80,13 @@ func (s *stream) retryWithBackoff(b []byte, wait time.Duration, attempt int) (in
 		return s.retryWithBackoff(b, newWait, attempt)
 	}
 	return n, err
+}
+
+type mp3Stream interface {
+	io.Reader
+	SampleRate() int
+}
+
+var newDecoder func(io.ReadCloser) (mp3Stream, error) = func(r io.ReadCloser) (mp3Stream, error) {
+	return mp3.NewDecoder(r)
 }

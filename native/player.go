@@ -21,41 +21,33 @@
 package native
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
-	"github.com/korandiz/mpa"
+	"github.com/TcM1911/jamsonic"
 )
-
-var (
-	inputBufferSize = 1024 * 8
-)
-
-var makeOutputStream func() (OutputStream, error)
-
-// OutputStream define an output stream
-type OutputStream interface {
-	CloseStream() error
-	Write(data []byte) (int, error)
-}
 
 type StreamHandler struct {
-	writer       OutputStream
+	logger       *jamsonic.Logger
+	writer       io.WriteCloser
 	writerMu     sync.Mutex
 	reader       io.Reader
 	finishedChan chan struct{}
 	stopChan     chan struct{}
-	newTrackChan chan io.Reader
+	newTrackChan chan *switchStream
 	errChan      chan error
 	pauseChan    chan struct{}
 	continueChan chan struct{}
 }
 
-func New() *StreamHandler {
+// New returns a new stream handler.
+func New(logger *jamsonic.Logger) *StreamHandler {
 	return &StreamHandler{
+		logger:       logger,
 		finishedChan: make(chan struct{}),
 		stopChan:     make(chan struct{}),
-		newTrackChan: make(chan io.Reader),
+		newTrackChan: make(chan *switchStream),
 		errChan:      make(chan error),
 		pauseChan:    make(chan struct{}),
 		continueChan: make(chan struct{}),
@@ -65,36 +57,46 @@ func New() *StreamHandler {
 func (p *StreamHandler) closeOutput() {
 	p.writerMu.Lock()
 	defer p.writerMu.Unlock()
-	p.writer.CloseStream()
+	if p.writer != nil {
+		p.writer.Close()
+	}
 	p.writer = nil
 }
 
+// Errors gives a channel where all errors are sent to.
 func (p *StreamHandler) Errors() <-chan error {
 	return p.errChan
 }
 
+// Play starts processing the stream.
 func (p *StreamHandler) Play(iostream io.Reader) error {
-	s := &stream{reader: iostream}
-	p.writerMu.Lock()
-	defer p.writerMu.Unlock()
+	s, err := newDecoder(&stream{reader: iostream})
+	if err != nil {
+		return err
+	}
+	p.logger.DebugLog(fmt.Sprintf("Sample Rate: %d", s.SampleRate()))
 	// Nothing playing
 	if p.writer == nil {
-		writer, err := makeOutputStream()
+		p.logger.DebugLog("Nothing playing, starting the main loop.")
+		writer, err := newOutputWriter(s.SampleRate())
 		if err != nil {
 			return err
 		}
+		p.writerMu.Lock()
 		p.writer = writer
+		p.writerMu.Unlock()
 		go mainLoop(p, s)
 	} else {
+		p.logger.DebugLog("Switching track.")
 		// Already playing a track, telling to switch stream.
-		p.newTrackChan <- s
+		p.newTrackChan <- &switchStream{stream: s, sampleRate: s.SampleRate()}
 	}
 	return nil
 }
 
 func mainLoop(p *StreamHandler, stream io.Reader) {
 	defer p.closeOutput()
-	p.reader = newDecoder(&stream)
+	p.reader = stream
 	buf := make([]byte, inputBufferSize)
 	for {
 		select {
@@ -103,30 +105,33 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 			return
 		// Pause
 		case <-p.pauseChan:
+			p.logger.DebugLog("Stream processing paused.")
 			select {
 			case <-p.continueChan:
+				p.logger.DebugLog("Resuming stream processing.")
 				continue
 			case <-p.stopChan:
 				return
-			case r := <-p.newTrackChan:
-				p.reader = newDecoder(&r)
-				continue
 			}
-		// New stream
-		case r := <-p.newTrackChan:
-			p.reader = newDecoder(&r)
 		// Play
 		default:
 			_, err := p.reader.Read(buf)
 			if err == io.EOF {
+				p.logger.DebugLog("Finished reading the stream.")
 				// Finished with this Track. Tell controller we are done.
 				p.finishedChan <- struct{}{}
 				select {
 				// New track
-				case r := <-p.newTrackChan:
-					p.reader = newDecoder(&r)
+				case s := <-p.newTrackChan:
+					err := p.switchStreams(s)
+					if err != nil {
+						p.logger.ErrorLog(fmt.Sprintf("Error when switching stream: %s\n", err.Error()))
+						return
+					}
+					p.logger.DebugLog("Processing new stream.")
 					continue
 				case <-p.stopChan:
+					p.logger.DebugLog("Closing handler.")
 					return
 				}
 				// Ignoring io.ErrUnexpectedEOF. Write what we have in the buffer
@@ -143,22 +148,48 @@ func mainLoop(p *StreamHandler, stream io.Reader) {
 	}
 }
 
+// Stop tells the handler to stop processing the current stream.
 func (p *StreamHandler) Stop() {
+	p.logger.DebugLog("Sending stop signal the main loop.")
 	p.stopChan <- struct{}{}
 }
 
+// Pause tells the handler to pause the processing of the current stream.
 func (p *StreamHandler) Pause() {
+	p.logger.DebugLog("Sending pause signal the main loop.")
 	p.pauseChan <- struct{}{}
 }
 
+// Continue tells the handler to resume the processing of the current stream.
 func (p *StreamHandler) Continue() {
+	p.logger.DebugLog("Sending resume signal the main loop.")
 	p.continueChan <- struct{}{}
 }
 
+// Finished returns a channel that is used to signal that the handler is done
+// processing the current stream.
 func (p *StreamHandler) Finished() <-chan struct{} {
 	return p.finishedChan
 }
 
-var newDecoder func(*io.Reader) io.Reader = func(r *io.Reader) io.Reader {
-	return &mpa.Reader{Decoder: &mpa.Decoder{Input: *r}}
+func (p *StreamHandler) switchStreams(s *switchStream) error {
+	p.closeOutput()
+	p.reader = s.stream
+	return p.newWriter(s.sampleRate)
+}
+
+func (p *StreamHandler) newWriter(sampleRate int) error {
+	p.writerMu.Lock()
+	defer p.writerMu.Unlock()
+	w, err := newOutputWriter(sampleRate)
+	if err != nil {
+		return err
+	}
+	p.writer = w
+	return nil
+}
+
+type switchStream struct {
+	stream     io.Reader
+	sampleRate int
 }

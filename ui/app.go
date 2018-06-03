@@ -144,11 +144,11 @@ func (app *App) Run() {
 	app.populatePlaylists()
 	// log.Printf("Artists done")
 	if jamsonic.Experimental {
-		streamHandler := native.New()
+		streamHandler := native.New(jamsonic.DefaultLogger())
 		callback := func(data *jamsonic.CallbackData) {
 			app.printBar(data.Duration, data.CurrentTrack)
 		}
-		musicPlayer = jamsonic.NewPlayer(app.Provider, streamHandler, callback, 1)
+		musicPlayer = jamsonic.NewPlayer(jamsonic.DefaultLogger(), app.Provider, streamHandler, callback, 1)
 		go func() {
 			err := musicPlayer.Error
 			for {

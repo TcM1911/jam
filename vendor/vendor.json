@@ -46,6 +46,60 @@
 			"revisionTime": "2017-08-06T14:41:49Z"
 		},
 		{
+			"checksumSHA1": "rm5EcebmWPwUgtflYREObZ9T1wo=",
+			"path": "github.com/hajimehoshi/go-mp3",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "pRBh7DBfIBcYsZpL2RexGq2//6I=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/bits",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "tYeu6lN+uVaRZQFtR1dgtMn8QLY=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/consts",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "07AiGstRboF35ki73jnv2s+QtmY=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/frame",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "4MTqzAA4cgYQfVRLHr8+WGpz/ek=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/frameheader",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "Lan9Jw6Gnwo9kqGUmVWOaxuYsgg=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/huffman",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "7PpRRua2RAeVcfiXxuYO3LwPEZ4=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/imdct",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "SrycOipo78Z26JC9yorfyo5kDTk=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/maindata",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
+			"checksumSHA1": "NNlpoDZ5ls6rY9oBjRXgzRyooeI=",
+			"path": "github.com/hajimehoshi/go-mp3/internal/sideinfo",
+			"revision": "3c185f92b8dbceefa913b64cae634ba47f452769",
+			"revisionTime": "2018-02-07T14:47:44Z"
+		},
+		{
 			"checksumSHA1": "K6exl2ouL7d8cR2i378EzZOdRVI=",
 			"path": "github.com/howeyc/gopass",
 			"revision": "bf9dde6d0d2c004a008c27aaee91170c786f6db8",
