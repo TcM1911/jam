@@ -21,15 +21,15 @@
 
 package gpm
 
+/*
 import (
 	"fmt"
-
-	"github.com/boltdb/bolt"
-	"github.com/budkin/gmusic"
 
 	"github.com/TcM1911/jamsonic"
 	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
+	"github.com/boltdb/bolt"
+	"github.com/budkin/gmusic"
 )
 
 func loginFromDatabase(db *bolt.DB) (*gmusic.GMusic, error) {
@@ -102,3 +102,4 @@ func authenticate() (*gmusic.GMusic, error) {
 	}
 	return gmusic.Login(email, string(password))
 }
+*/
