@@ -26,14 +26,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/TcM1911/jamsonic/tui"
-
 	"github.com/TcM1911/jamsonic"
-	"github.com/TcM1911/jamsonic/gpm"
-	"github.com/TcM1911/jamsonic/lastfm"
 	"github.com/TcM1911/jamsonic/storage"
 	"github.com/TcM1911/jamsonic/subsonic"
-	"github.com/TcM1911/jamsonic/ui"
+	"github.com/TcM1911/jamsonic/tui"
 )
 
 const (
@@ -54,10 +50,6 @@ func init() {
 	// parse flags
 	flag.BoolVar(&vers, "version", false, "print version and exit")
 	flag.BoolVar(&debug, "debug", false, "debug")
-	flag.BoolVar(&lastFM, "lastfm", false, "Enable LastFM scrobbler")
-	flag.BoolVar(&useGPM, "googlemusic", false, "Use Google Play Music")
-	flag.BoolVar(&experimental, "experimental", false, "Use experimental features")
-	flag.BoolVar(&legacy, "legacy", false, "Use legacy features")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, jamsonic.Version))
@@ -65,13 +57,6 @@ func init() {
 	}
 
 	flag.Parse()
-
-	if experimental {
-		jamsonic.Experimental = true
-	}
-	if legacy {
-		jamsonic.Legacy = true
-	}
 
 	if vers {
 		fmt.Printf("%s\n", jamsonic.Version)
@@ -91,44 +76,19 @@ func main() {
 		logger.ErrorLog("Can't open database: " + err.Error())
 		return
 	}
-	if useGPM {
-		provider, lmclient, lastfm, err := gpm.CheckCreds(db, &lastFM)
-		if err != nil {
-			logger.ErrorLog("Can't connect to Google Music: " + err.Error())
-			return
-		}
-		if err = doUI(provider, lmclient, lastfm, db); err != nil {
-			logger.ErrorLog("Can't start UI: " + err.Error())
-			return
-		}
-	} else {
-		subsonicLogger := logger.SubLogger("[Subsonic client]")
-		client, err := subsonic.New(db, jamsonic.DefaultCredentialRequest, subsonicLogger)
-		if err != nil {
-			logger.ErrorLog("Can't connect to SubSonic server: " + err.Error())
-			return
-		}
-		db.LibName = []byte(client.Host())
-		if err != nil {
-			logger.ErrorLog("Failed to sync the library with the SubSonic server: " + err.Error())
-			return
-		}
-		if !legacy {
-			ui := tui.New(db, client, logger)
-			if err := ui.Run(); err != nil {
-				logger.ErrorLog(err.Error())
-			}
-		} else {
-			doUI(client, &lastfm.Client{}, "None", db)
-		}
-	}
-}
-
-func doUI(provider jamsonic.Provider, lmclient *lastfm.Client, lastfm string, db *storage.BoltDB) error {
-	app, err := ui.New(provider, lmclient, lastfm, db)
+	subsonicLogger := logger.SubLogger("[Subsonic client]")
+	client, err := subsonic.New(db, jamsonic.DefaultCredentialRequest, subsonicLogger)
 	if err != nil {
-		return err
+		logger.ErrorLog("Can't connect to SubSonic server: " + err.Error())
+		return
 	}
-	app.Run()
-	return nil
+	db.LibName = []byte(client.Host())
+	if err != nil {
+		logger.ErrorLog("Failed to sync the library with the SubSonic server: " + err.Error())
+		return
+	}
+	ui := tui.New(db, client, logger)
+	if err := ui.Run(); err != nil {
+		logger.ErrorLog(err.Error())
+	}
 }
