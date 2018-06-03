@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/TcM1911/jamsonic.svg?branch=master)](https://travis-ci.org/TcM1911/jamsonic)
+[![Build Status](https://travis-ci.org/TcM1911/jamsonic.svg?branch=master)](https://travis-ci.org/TcM1911/jamsonic) [![Go Report Card](https://goreportcard.com/badge/github.com/TcM1911/jamsonic)](https://goreportcard.com/report/github.com/TcM1911/jamsonic)
 # Jamsonic
 
 Jamsonic is a console based music player for Subsonic/Madsonic/Libresonic/Airsonic.
@@ -7,21 +7,15 @@ music player for Google Play Music.
 
 It has the following features:
 
-- Google Play Music is still supported. (use -googlemusic flag)
-- Last.fm scrobbling (use -lastfm flag)
-- populating the database with artists and albums you saved through the
+- Populating the database with artists and albums you saved through the
   web interface (or by any other means)
-- searching within artists in the database
-- playing, pausing (buggy), stopping, previous track, next track
-- the interface is ripped off from Cmus, I only added a progress bar
-- this player no longer lists artists in random order - if you want to shuffle
-  them press R
+- Playing, pausing, stopping, previous track, next track
 
 Contributions are welcome!
 
 ## How to get up and running?
 
-The linux binaries released depends on pulseaudio. For macOS, portaudio has to be installed. Windows doesn't need anything extra.
+For macOS and Linux, portaudio has to be installed. Windows doesn't need anything extra.
 
 ## Keybindings
 
@@ -47,13 +41,3 @@ The keybindings are mostly the same as in Cmus:
 | R             | randomize artists                                                            |
 | Ctrl+Space    | toggle view (playlists/artists)                                              |
 | r             | repeat current track                                                         |
-
-## Google Play Music
-
-In order to use this program you must be logged in in Google Play services on
-your phone, if you have no smartphone - this program, at its current state,
-is not for you
-
-If you use 2-factor authorization in your Google account, you must
-generate an app password, follow this link 
-https://security.google.com/settings/security/apppasswords
