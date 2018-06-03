@@ -21,7 +21,6 @@ script:
 
 before_deploy:
   - make release
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make release_windows; fi
 
 deploy:
   provider: releases
