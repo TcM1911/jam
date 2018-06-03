@@ -22,6 +22,7 @@ SOFTWARE.
 
 package gpm
 
+/*
 import (
 	"io"
 
@@ -131,3 +132,4 @@ func convertPlaylists(ps []*gmusic.Playlist) []*jamsonic.Playlist {
 	}
 	return a
 }
+*/

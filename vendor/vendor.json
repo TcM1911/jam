@@ -9,12 +9,6 @@
 			"revisionTime": "2018-03-02T18:00:52Z"
 		},
 		{
-			"checksumSHA1": "rsTz1Sfv1qoFX7ObAJmUEJmeBaU=",
-			"path": "github.com/budkin/gmusic",
-			"revision": "4213ff45a076653c4d45f8eea5c8bd1414c3a463",
-			"revisionTime": "2017-02-07T12:13:02Z"
-		},
-		{
 			"checksumSHA1": "dvabztWVQX8f6oMLRyv4dLH+TGY=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
@@ -106,12 +100,6 @@
 			"revisionTime": "2017-01-09T16:22:49Z"
 		},
 		{
-			"checksumSHA1": "+pxGEkcU8y/N/VmaezSOP5nWceQ=",
-			"path": "github.com/korandiz/mpa",
-			"revision": "0947560b56fbf84d8b6a23f27eaceeb853c209e2",
-			"revisionTime": "2015-11-22T13:40:43Z"
-		},
-		{
 			"checksumSHA1": "0fz0D2z8aRTJUpnqX0jM0TENzMw=",
 			"path": "github.com/koron/go-waveout",
 			"revision": "800614c8e3fb3c2ce4015f1a528cc8b1c77982e5",
@@ -128,18 +116,6 @@
 			"path": "github.com/mattn/go-runewidth",
 			"revision": "a9d6d1e4dc51df2130326793d49971f238839169",
 			"revisionTime": "2018-03-04T23:54:28Z"
-		},
-		{
-			"checksumSHA1": "OsW9F5TlTphSy16RewIWPdBZo38=",
-			"path": "github.com/mesilliac/pulse-simple",
-			"revision": "75ac54e19fdff88f4fbd82f45125134b602230b0",
-			"revisionTime": "2017-05-06T10:13:41Z"
-		},
-		{
-			"checksumSHA1": "t35YF1xGl1LdGSzb9CGJKB/BjX4=",
-			"path": "github.com/mjibson/gpsoauth",
-			"revision": "be41f43784ed68405d473a38b886a4198aaf45b6",
-			"revisionTime": "2015-06-21T20:05:43Z"
 		},
 		{
 			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
@@ -159,12 +135,6 @@
 			"path": "github.com/satori/go.uuid",
 			"revision": "36e9d2ebbde5e3f13ab2e25625fd453271d6522e",
 			"revisionTime": "2018-01-03T17:44:51Z"
-		},
-		{
-			"checksumSHA1": "KNByoy50X9vhUDIf2tgqUX5Eoys=",
-			"path": "github.com/shkh/lastfm-go/lastfm",
-			"revision": "125b747251b36e1e4a2f20391d674ff98a09a239",
-			"revisionTime": "2017-05-16T04:31:11Z"
 		},
 		{
 			"checksumSHA1": "6LwXZI7kXm1C0h4Ui0Y52p9uQhk=",
